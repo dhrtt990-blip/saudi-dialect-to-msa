@@ -1,0 +1,32 @@
+{
+  "project": "Saudi Dialect to Modern Standard Arabic Rewriter with a Fact-Preservation Check",
+  "release": "v2.2",
+  "status": "TEAM_APPROVED_AND_GITHUB_FROZEN",
+  "attestation_date": "2026-11-20",
+  "approval_basis": "Direct in-person review reported by team leader",
+  "team_leader": "Abdulrahman Mastour Alharthi",
+  "golden_file": "data/golden_test.jsonl",
+  "golden_records": 100,
+  "owner_approvals": 100,
+  "reciprocal_peer_reviews": 100,
+  "owner_approvals_per_member": 25,
+  "peer_reviews_per_member": 25,
+  "changed_ids_approved": [
+    "g072",
+    "g085",
+    "g086",
+    "g088",
+    "g095"
+  ],
+  "checked_changes_by": [
+    "Musaad Obaied Saad Alqahtani",
+    "Mohammed Adeeb Alrashdi"
+  ],
+  "sha256": "4b9d8425d8c26d54507475bb55f594d4670a78e72e7ad4e7a96a1e78d3971f19",
+  "git_blob_sha": "64754759636baca2aaa7447fe2881002852a95c7",
+  "freeze_commit": "eb809eef46f2c9849f305478d7cd7e1c0846e91c",
+  "testing_and_model_training": {
+    "real_lora_finetuning_completed": false,
+    "real_model_evaluation_completed": false
+  }
+}
