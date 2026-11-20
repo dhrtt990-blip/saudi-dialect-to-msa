@@ -1,0 +1,24 @@
+{
+  "project": "Saudi Dialect to MSA Rewriter with a Fact-Preservation Check",
+  "prepared_for": "2026-11-21",
+  "github_repository": "https://github.com/dhrtt990-blip/saudi-dialect-to-msa",
+  "visibility": "public",
+  "golden_release": "v2.2",
+  "golden_records": 100,
+  "team_approvals": 100,
+  "peer_reviews": 100,
+  "golden_sha256": "4b9d8425d8c26d54507475bb55f594d4670a78e72e7ad4e7a96a1e78d3971f19",
+  "golden_freeze_commit": "eb809eef46f2c9849f305478d7cd7e1c0846e91c",
+  "five_refinements_approved": [
+    "g072",
+    "g085",
+    "g086",
+    "g088",
+    "g095"
+  ],
+  "repository_setup_completed": true,
+  "full_code_package_uploaded": false,
+  "blackboard_submission_confirmed": false,
+  "real_model_finetuning_completed": false,
+  "real_model_evaluation_completed": false
+}
