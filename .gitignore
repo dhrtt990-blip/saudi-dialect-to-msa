@@ -1,0 +1,28 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Third-party originals: download them yourself; do not redistribute without checking the licence.
+data/raw/
+
+# Dry runs with the mock client, and the smoke test of run_local.bat, are not results.
+results/dryrun_mock/
+results/smoke_base_model/
+
+# Large model files and the generated Ollama Modelfile.
+models/
+*.gguf
+Modelfile
+Modelfile.*
+outputs/
+
+# Never commit tokens.
+.env
+.ruff_cache/
+logs/
+
+# Corpus-derived training files are rebuilt by `python -m src.data_prep`; the report next to them is committed.
+data/processed/*.jsonl

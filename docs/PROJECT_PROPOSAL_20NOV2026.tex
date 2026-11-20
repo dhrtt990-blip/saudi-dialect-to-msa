@@ -1,0 +1,69 @@
+% KAUST Academy / NLP Applications — one-page project proposal
+% Saudi Dialect to MSA Rewriter with Fact Preservation
+% Overleaf: use pdfLaTeX. Black-and-white academic design, matching earlier proposal.
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext}
+\usepackage{microtype}
+\usepackage[a4paper,top=17mm,bottom=16mm,left=20mm,right=20mm]{geometry}
+\usepackage{tabularx,array}
+\usepackage{ragged2e}
+\usepackage{hyperref}
+\usepackage{setspace}
+\hypersetup{hidelinks,pdfauthor={Saudi Dialect to MSA Project Team},pdftitle={Saudi Dialect to Modern Standard Arabic — Project Proposal}}
+\pagenumbering{gobble}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setstretch{1.055}
+\renewcommand{\arraystretch}{1.20}
+\newcommand{\smalllabel}[1]{{\sffamily\fontsize{8}{10}\selectfont\bfseries\MakeUppercase{#1}}}
+\newcommand{\sectionline}[2]{\vspace{6.5pt}{\sffamily\fontsize{9.1}{11.5}\selectfont\bfseries #1\quad #2}\par\vspace{2.5pt}}
+\begin{document}
+\thispagestyle{empty}
+\noindent\begin{tabularx}{\linewidth}{@{}Xr@{}}
+\smalllabel{KAUST Academy / NLP Applications} & \smalllabel{Project Proposal | 20 November 2026} \\
+\end{tabularx}
+\vspace{4pt}\hrule height 1.1pt\vspace{12pt}
+
+{\sffamily\bfseries\fontsize{20}{23}\selectfont Saudi Dialect to Modern Standard Arabic}\par
+\vspace{3.5pt}
+{\sffamily\fontsize{10.7}{13}\selectfont A fact-preserving rewriter for Saudi messages, with an automatic verification step}\par
+\vspace{9pt}
+\noindent\begin{tabularx}{\linewidth}{@{}>{\RaggedRight\arraybackslash}X >{\RaggedLeft\arraybackslash}X@{}}
+{\smalllabel{Topic 6 -- Your Own Project}} & {\smalllabel{Option A -- LoRA Fine-tuning}}\\
+\end{tabularx}
+\vspace{8pt}\hrule height .45pt
+
+\sectionline{TEAM}{Project members}
+\noindent\begin{tabularx}{\linewidth}{@{}p{10mm}X p{27mm}p{26mm}@{}}
+{\smalllabel{No.}} & {\smalllabel{Full name}} & {\smalllabel{Student ID}} & {\smalllabel{Role}}\\[-1pt]
+\hline
+01 & \textbf{Abdulrahman Alharthi} & 225478 & Team leader\\
+02 & \textbf{Yasser Al-Hajlah} & 224481 & Team member\\
+03 & \textbf{Musaad Al-Qahtani} & 225471 & Team member\\
+04 & \textbf{Mohammed Al-Rashidi} & 225488 & Team member\\
+\end{tabularx}
+\vspace{4pt}\hrule height .45pt
+
+\sectionline{01}{Research idea and objective}
+Informal Saudi-dialect messages often need to become formal Modern Standard Arabic (MSA) for customer-service and administrative use. A fluent rewrite can still be unsafe if it changes a name, date, time, amount, or reference code. This project will test whether small-model adaptation improves Saudi-to-MSA rewriting and whether a deterministic fact-preservation check reduces detectable factual alterations.
+
+\sectionline{02}{Dataset and approved golden test}
+Candidate training data are Saudi--MSA sentence pairs from Khalid Almeman's multidialectal parallel travel corpus (50,010 total records across dialects; \href{https://doi.org/10.5281/zenodo.17776617}{Zenodo: 10.5281/zenodo.17776617}) plus synthetic examples rich in factual details. The corpus's licence statements will be resolved before any redistribution. Our \textbf{100-message golden test} has been approved and reciprocally peer-reviewed by all four members: each approved 25 messages and reviewed 25 from a partner, in the team leader's presence. The set will be committed on GitHub before model training, and training/test overlap will be checked.
+
+\sectionline{03}{Proposed training approach}
+We plan supervised \textbf{LoRA fine-tuning of Qwen3-1.7B} (under the 4B model-size limit), using assistant-only loss and QLoRA if GPU memory requires it. A carefully prompted untuned Qwen3 model will serve as the baseline. A training notebook and data-processing code are prepared, but real fine-tuning and model-based comparison are subsequent stages, not completed experimental results.
+
+\sectionline{04}{System workflow and local demonstration}
+A local rewriting pipeline will convert Saudi input to MSA, then compare supported facts such as numbers, dates, times, Latin-script codes, and explicitly supplied names. On a mismatch, it will attempt one constrained repair; persistent mismatches will withhold the rewrite and display the original for review. The intended demonstration uses \textbf{Ollama} for local model serving and a right-to-left \textbf{Streamlit} interface. Pattern checks are not a guarantee of full semantic equivalence.
+
+\sectionline{05}{Evaluation and expected outcome}
+We will compare (i) prompted untuned Qwen3, (ii) LoRA-tuned Qwen3, and (iii) the tuned model with fact checking on the same frozen golden set. Measures will include human-rated meaning preservation and MSA quality, preserved facts, dialect remnants, wrong-to-right versus right-to-wrong changes, and released versus withheld outputs. Ten adversarial cases will test safety. The expected outcome is a reproducible local prototype and transparent comparative evidence, not guaranteed error-free rewriting.
+
+\vfill
+\vspace{6pt}\hrule height .7pt\vspace{4pt}
+\noindent\begin{tabularx}{\linewidth}{@{}>{\RaggedRight\arraybackslash}X >{\RaggedLeft\arraybackslash}X@{}}
+{\sffamily\fontsize{8.2}{10}\selectfont\bfseries DATA SOURCE \normalfont\href{https://doi.org/10.5281/zenodo.17776617}{doi.org/10.5281/zenodo.17776617}} & {\sffamily\fontsize{8.2}{10}\selectfont\bfseries GOLDEN TEST \normalfont 100 team-reviewed messages}\\
+\end{tabularx}
+\end{document}

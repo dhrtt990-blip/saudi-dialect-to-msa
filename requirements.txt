@@ -1,0 +1,6 @@
+# Local runtime: pipeline, evaluation, safety check, app and tests.
+# Needs Python 3.11 or newer. Tested on Python 3.13.
+# requirements.lock.txt lists the full set of versions these were tested with.
+streamlit==1.67.0
+requests==2.34.2
+pytest==9.2.0

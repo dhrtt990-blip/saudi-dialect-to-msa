@@ -1,0 +1,53 @@
+{
+  "rows": 100,
+  "rows_from_draft": 100,
+  "rows_added_by_team": 0,
+  "draft_rows_removed": 0,
+  "sources_changed": 0,
+  "references_changed": 4,
+  "must_keep_changed": 1,
+  "rows_unchanged_from_draft": 95,
+  "reviewed_by": {
+    "Abdulrahman Mastour Alharthi": 25,
+    "Yasser Mansour Alhajlah": 25,
+    "Mohammed Adeeb Alrashdi": 25,
+    "Musaad Obaied Saad Alqahtani": 25
+  },
+  "confirmed_by": {
+    "Yasser Mansour Alhajlah": 25,
+    "Abdulrahman Mastour Alharthi": 25,
+    "Musaad Obaied Saad Alqahtani": 25,
+    "Mohammed Adeeb Alrashdi": 25
+  },
+  "changed_ids": [
+    "g072",
+    "g085",
+    "g086",
+    "g088",
+    "g095"
+  ],
+  "created_utc": "2026-11-19T22:56:25+00:00",
+  "sheet": "golden_review_approved.xlsx",
+  "draft_file": "data/golden_draft_ai.jsonl",
+  "draft_sha256": "f340154c1573f7ed6ebd775f5bacdfc350ccb94c1dcb617fc61219fd67d8fd4a",
+  "golden_file": "data/golden_test.jsonl",
+  "golden_sha256": "4b9d8425d8c26d54507475bb55f594d4670a78e72e7ad4e7a96a1e78d3971f19",
+  "rows_with_facts": 92,
+  "approval_attestation": {
+    "recorded": "2026-11-20",
+    "witnessed_by_leader": "Abdulrahman Mastour Alharthi",
+    "all_100_owner_approvals": true,
+    "all_100_reciprocal_peer_reviews": true,
+    "pairings_confirmed_directly_by_leader": true,
+    "record": "review/approval_attestation.json"
+  },
+  "release": "Golden Test v2.2",
+  "revision_approval": {
+    "reviewers": [
+      "Mohammed Adeeb Alrashdi",
+      "Musaad Obaied Saad Alqahtani"
+    ],
+    "team_leader_witness": "Abdulrahman Mastour Alharthi",
+    "recorded_on": "2026-11-20"
+  }
+}
