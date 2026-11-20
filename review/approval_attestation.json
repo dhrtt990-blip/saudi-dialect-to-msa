@@ -1,0 +1,49 @@
+{
+  "project": "Saudi Dialect to MSA Rewriter with a Fact-Preservation Check",
+  "golden_version": "v2.2",
+  "leader_attestation_recorded": "2026-11-20",
+  "attested_by": "Abdulrahman Mastour Alharthi",
+  "basis": "Team leader reports all four members personally approved their 25 messages and each reviewed a peer's 25 messages in the leader's presence.",
+  "digital_signatures_collected": false,
+  "source_authorship": "AI-assisted drafts; reviewed and approved by team members",
+  "total_messages_approved": 100,
+  "total_peer_reviewed": 100,
+  "team_members": [
+    {
+      "name": "Abdulrahman Mastour Alharthi",
+      "owns_and_approved": 25,
+      "peer_reviewer": "Yasser Mansour Alhajlah",
+      "peer_reviews_completed": 25
+    },
+    {
+      "name": "Yasser Mansour Alhajlah",
+      "owns_and_approved": 25,
+      "peer_reviewer": "Abdulrahman Mastour Alharthi",
+      "peer_reviews_completed": 25
+    },
+    {
+      "name": "Mohammed Adeeb Alrashdi",
+      "owns_and_approved": 25,
+      "peer_reviewer": "Musaad Obaied Saad Alqahtani",
+      "peer_reviews_completed": 25
+    },
+    {
+      "name": "Musaad Obaied Saad Alqahtani",
+      "owns_and_approved": 25,
+      "peer_reviewer": "Mohammed Adeeb Alrashdi",
+      "peer_reviews_completed": 25
+    }
+  ],
+  "final_refinements": [
+    "g072",
+    "g085",
+    "g086",
+    "g088",
+    "g095"
+  ],
+  "refinements_review": "Mohammed Adeeb Alrashdi and Musaad Obaied Saad Alqahtani rechecked and approved all five refinements, witnessed by the leader",
+  "golden_jsonl_sha256": "4b9d8425d8c26d54507475bb55f594d4670a78e72e7ad4e7a96a1e78d3971f19",
+  "golden_freeze_commit": "eb809eef46f2c9849f305478d7cd7e1c0846e91c",
+  "model_finetuning_completed": false,
+  "model_based_evaluation_completed": false
+}
