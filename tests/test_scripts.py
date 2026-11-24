@@ -19,6 +19,7 @@ from src.prompts import FEW_SHOT_EXAMPLES
 from src.validate_golden import validate_rows
 
 DRAFT = "data/golden_draft_ai.jsonl"
+V3_DRAFT = "data/golden_v3_draft.jsonl"   # the travel-desk draft, with key facts and missing details labelled
 
 
 def load_script(name):
@@ -126,7 +127,7 @@ def run_import(tmp_path, sheet):
 
 def test_export_has_the_review_columns(tmp_path):
     table, keys = reviewed_table(tmp_path, reviewer="", confirmer="")
-    assert keys == ["id", "topic", "source", "reference", "must_keep", "reviewed_by", "confirmed_by", "notes"]
+    assert keys == ["id", "topic", "source", "reference", "must_keep", "key_facts", "missing", "reviewed_by", "confirmed_by", "notes"]
     assert len(table) == 101 and table[21][keys.index("must_keep")] == "النرجس، الياسمين"
 
 
@@ -287,6 +288,24 @@ def test_header_key_and_cell_references():
     assert [review._column_index(r) for r in ("A1", "Z9", "AA10", "AB7")] == [0, 25, 26, 27]
 
 
+def test_jsonl_is_written_with_the_same_bytes_on_every_system(tmp_path, monkeypatch):
+    # A text-mode file gets "\r\n" line ends on Windows. The SHA-256 recorded for the golden test is taken from
+    # the file the import writes, and Git stores "\n", so the writer must not translate line ends.
+    import builtins
+
+    from src import common
+    seen = {}
+
+    def spy(path, mode="r", *args, **kwargs):
+        seen["mode"], seen["newline"] = mode, kwargs.get("newline")
+        return builtins.open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(common, "open", spy, raising=False)
+    common.write_jsonl(tmp_path / "a.jsonl", [{"a": "ع"}, {"b": 1}])
+    assert "b" in seen["mode"] or seen["newline"] == "\n"
+    assert (tmp_path / "a.jsonl").read_bytes() == '{"a": "ع"}\n{"b": 1}\n'.encode()
+
+
 # ------------------------------- corpus download ---------------------------- #
 @pytest.fixture
 def served(tmp_path):
@@ -363,3 +382,91 @@ def test_published_checksum_is_the_one_recorded():
     # Read from the Zenodo API on 2026-11-19; the dataset card quotes the same values.
     assert (corpus.EXPECTED_BYTES, corpus.EXPECTED_MD5) == (18375663, "67eea3fcb2c7671963afff33787f8dd8")
     assert corpus.URL == "https://zenodo.org/records/17776617/files/multidialectal_travel_corpus.csv?download=1"
+
+
+# --------------------------- the travel-desk draft -------------------------- #
+def test_travel_draft_validates_and_is_labelled_on_every_row():
+    rows = read_jsonl(V3_DRAFT)
+    assert [r["id"] for r in rows] == [f"t{i:03d}" for i in range(1, 101)]
+    errors, warnings, stats = validate_rows(rows, min_rows=100, require_review=False)
+    assert errors == [] and not [w for w in warnings if "reference still contains" in w or "is not in key_facts" in w]
+    assert stats["key_facts"] >= 300 and 25 <= stats["rows_missing_a_detail"] <= 45
+    # Every row carries both labels; an empty list is a label ("no key fact"), and few rows have none.
+    assert all(isinstance(r["key_facts"], list) and isinstance(r["missing"], list) for r in rows)
+    assert sum(1 for r in rows if not r["key_facts"]) <= 3 and 5 <= sum(1 for r in rows if r.get("control")) <= 10
+    # The order is mixed, so each quarter of the sheet holds nearly every kind of message.
+    assert all(len({r["topic"] for r in rows[i:i + 25]}) >= 6 for i in range(0, 100, 25))
+    # A draft is not a golden test: nobody has signed a row yet.
+    assert not any(k in r for r in rows for k in ("reviewed_by", "confirmed_by", "written_by", "checked_by"))
+    errors, _, _ = validate_rows(rows, min_rows=100)
+    assert len([e for e in errors if "two team members must be named" in e]) == 100
+
+
+def test_travel_draft_is_apart_from_the_prompt_examples_and_the_template_pairs():
+    rows = read_jsonl(V3_DRAFT)
+    index = GoldenIndex(rows)
+    for source, target in FEW_SHOT_EXAMPLES:
+        assert index.match(source) is None and index.match(target) is None
+    pairs = generate_synthetic(2000, seed=13)
+    kept, removed = remove_shared_facts(pairs, rows)
+    kept, collided = remove_golden_overlap(kept, index)
+    assert collided == [] and len(removed) < 0.01 * len(pairs)
+
+
+def travel_sheet(tmp_path):
+    """The review sheet of the travel draft with both names filled in, and the position of each column."""
+    sheet = tmp_path / "sheet.csv"
+    review.export_csv(read_jsonl(V3_DRAFT), sheet)
+    with open(sheet, encoding="utf-8-sig", newline="") as fh:
+        table = list(csv.reader(fh))
+    keys = [review._header_key(c) for c in table[0]]
+    col = {k: keys.index(k) for k in keys}
+    for r in table[1:]:
+        r[col["reviewed_by"]], r[col["confirmed_by"]] = "نورة", "سعد"
+    return table, col
+
+
+def test_label_columns_survive_the_review_sheet(tmp_path):
+    table, col = travel_sheet(tmp_path)
+
+    def row(start):
+        return next(r for r in table[1:] if r[col["source"]].startswith(start))
+
+    greeting, bare, wheelchair = row("السلام عليكم، ابغى احجز تذكرتين"), row("السلام عليكم ابغى احجز تذكرة طيران"), row("غيروا لي الوجبة")
+    assert greeting[col["key_facts"]].split("\n")[:2] == ["تذكرتين", "من الرياض"] and bare[col["missing"]] == "date, destination"
+    greeting[col["key_facts"]] += "\nالسلام عليكم"            # a reviewer adds a key fact on a new line
+    bare[col["key_facts"]] = "تذكرة، طيران"                    # another types two facts on one line, with an Arabic comma
+    wheelchair[col["missing"]] = "date، destination"           # and a missing detail, also with an Arabic comma
+    xlsx = tmp_path / "reviewed.xlsx"
+    write_xlsx(xlsx, table)
+    out = tmp_path / "golden_test.jsonl"
+    assert review.main(["import", str(xlsx), "--draft", V3_DRAFT, "--out", str(out)]) == 0
+    golden = {g["id"]: g for g in read_jsonl(out)}
+    assert golden[greeting[col["id"]]]["key_facts"][-1] == "السلام عليكم"
+    assert golden[bare[col["id"]]]["key_facts"] == ["تذكرة", "طيران"]
+    assert golden[wheelchair[col["id"]]]["missing"] == ["date", "destination"]
+    assert golden[wheelchair[col["id"]]]["key_facts"][2] == "كرسياً متحركاً | كرسي متحرك"     # alternatives stay one fact
+    amount = next(g for g in golden.values() if g["source"].startswith("نبي فاتورة للحجز"))
+    assert "7,245.50" in amount["key_facts"]                                                  # a comma inside a number does not split it
+    summary = json.loads((tmp_path / "golden_test_review.json").read_text(encoding="utf-8"))
+    assert summary["labels_changed"] == 3 and summary["rows_unchanged_from_draft"] == 97
+
+
+def test_sheet_with_only_one_of_the_two_label_columns_is_refused(tmp_path, capsys):
+    table, col = travel_sheet(tmp_path)
+    table = [[cell for i, cell in enumerate(r) if i != col["missing"]] for r in table]       # a reviewer deleted the column
+    sheet = tmp_path / "no_missing.csv"
+    write_table_csv(sheet, table)
+    out = tmp_path / "golden_test.jsonl"
+    assert review.main(["import", str(sheet), "--draft", V3_DRAFT, "--out", str(out)]) == 1
+    assert "only one of the two label columns" in capsys.readouterr().out and not out.exists()
+
+
+def test_sheet_without_label_columns_gives_rows_without_labels(tmp_path):
+    table, keys = reviewed_table(tmp_path)
+    drop = [keys.index("key_facts"), keys.index("missing")]
+    table = [[cell for i, cell in enumerate(r) if i not in drop] for r in table]
+    sheet = tmp_path / "old_style.csv"
+    write_table_csv(sheet, table)
+    code, out = run_import(tmp_path, sheet)
+    assert code == 0 and not any("key_facts" in r or "missing" in r for r in read_jsonl(out))

@@ -8,6 +8,8 @@ One JSON object per line:
      "source": "<message in Saudi dialect>",
      "reference": "<the same message in formal MSA>",
      "must_keep": ["<proper name that must survive>", ...],        (optional)
+     "key_facts": ["<a key fact, worded as in the reference>", ...],   (see docs/annotation_guidelines.md)
+     "missing": ["date" | "destination" | "booking_reference", ...],   (needed details the message does not give)
      "drafted_by": "ai_assistant",                                 (optional: how the row was first produced)
      "reviewed_by": "<member who corrected the row>",
      "confirmed_by": "<another member who checked it again>"}
@@ -15,6 +17,10 @@ One JSON object per line:
 A row the team wrote from scratch uses "written_by" and "checked_by" instead of
 the last two fields. Either way two different team members stand behind every
 row, and the file says who.
+
+"key_facts" and "missing" are labels. A file either carries them on every row
+or on none: once one row is labelled, a row without them is an error. An empty
+list is a label ("no key fact", "nothing missing").
 
 Errors stop the run. Warnings are printed for a person to look at.
 """
@@ -25,8 +31,9 @@ import sys
 from collections import Counter
 
 from .common import normalize_for_dedup, read_jsonl
-from .facts import compare_facts, contains_name, extract_facts
+from .facts import compare_facts, contains_name, extract_facts, fact_present
 from .lexicon import find_dialect_words
+from .needs import DETAILS
 
 REQUIRED = ("id", "source", "reference")
 REVIEW_PAIRS = (("written_by", "checked_by"), ("reviewed_by", "confirmed_by"))
@@ -79,6 +86,11 @@ def validate_rows(rows: list[dict], min_rows: int = 100, require_review: bool = 
     with_facts = 0
     no_marker: list[str] = []
     drafted: Counter = Counter()
+    labelled: list[str] = []        # rows that carry key_facts and missing
+    unlabelled: list[str] = []
+    no_key_fact: list[str] = []
+    uncovered: list[str] = []       # a fact the checker reads is in the reference but not in key_facts
+    n_key_facts = n_incomplete = 0
 
     for n, row in enumerate(rows, 1):
         if not isinstance(row, dict):
@@ -121,6 +133,31 @@ def validate_rows(rows: list[dict], min_rows: int = 100, require_review: bool = 
         if extract_facts(row["source"]) or must_keep:
             with_facts += 1
 
+        if "key_facts" in row and "missing" in row:
+            labelled.append(rid)
+        else:
+            unlabelled.append(rid)
+        key_facts = row.get("key_facts", [])
+        if not isinstance(key_facts, list) or any(not isinstance(t, str) or not t.strip() for t in key_facts):
+            errors.append(f"{rid}: key_facts must be a list of non-empty strings")
+            key_facts = []
+        for fact in key_facts:
+            if not fact_present(row["reference"], fact):
+                errors.append(f"{rid}: key fact '{fact}' is not found in the reference; word it as the reference does")
+        details = row.get("missing", [])
+        if not isinstance(details, list) or any(d not in DETAILS for d in details) or len(set(details)) != len(details):
+            errors.append(f"{rid}: missing must be a list drawn from: {', '.join(DETAILS)}")
+            details = []
+        n_key_facts += len(key_facts)
+        n_incomplete += bool(details)
+        if "key_facts" in row:
+            if not key_facts:
+                no_key_fact.append(rid)
+            in_labels = {f.key() for fact in key_facts for f in extract_facts(fact)}
+            names_left = [name for name in must_keep if not any(contains_name(fact, name) or contains_name(name, fact) for fact in key_facts)]
+            if names_left or any(f.key() not in in_labels for f in extract_facts(row["reference"])):
+                uncovered.append(rid)
+
         pair = review_pair(row)
         drafted[str(row.get("drafted_by") or ("team" if pair and pair[2][0] == "written_by" else "not stated"))] += 1
         if require_review:
@@ -142,6 +179,13 @@ def validate_rows(rows: list[dict], min_rows: int = 100, require_review: bool = 
     if no_marker:
         # Dialect shows in many ways the short word list does not cover, so this is a prompt to look, not a fault.
         warnings.append(f"{len(no_marker)} source(s) contain no word from the dialect list; check they are dialect: {', '.join(no_marker)}")
+    if labelled and unlabelled:
+        errors.append(f"{len(unlabelled)} row(s) carry no key_facts and missing labels although other rows do: {', '.join(unlabelled)}")
+    if no_key_fact:
+        warnings.append(f"{len(no_key_fact)} row(s) have no key fact labelled; check that nothing in them must survive: {', '.join(no_key_fact)}")
+    if uncovered:
+        warnings.append(f"{len(uncovered)} row(s) have a number, date, code, day, place or listed name in the reference that is not "
+                        f"in key_facts; add it or confirm it is not a key fact: {', '.join(uncovered)}")
     if len(rows) < min_rows:
         errors.append(f"only {len(rows)} rows; at least {min_rows} are required")
     share = with_facts / len(rows) if rows else 0.0
@@ -149,6 +193,8 @@ def validate_rows(rows: list[dict], min_rows: int = 100, require_review: bool = 
         warnings.append(f"only {share:.0%} of the rows contain a number, date, time, Latin word or listed name; "
                         "the fact checker is tested by the rest only as 'nothing to keep'")
     stats = {"rows": len(rows), "rows_with_facts": with_facts, "share_with_facts": round(share, 3), "drafted_by": dict(drafted)}
+    if labelled:
+        stats.update({"key_facts": n_key_facts, "rows_missing_a_detail": n_incomplete})
     return errors, warnings, stats
 
 
@@ -171,6 +217,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {e}")
     print(f"{stats['rows']} rows, {stats['rows_with_facts']} with facts to keep ({stats['share_with_facts']:.0%}); "
           f"first produced by: {stats['drafted_by']}; {len(errors)} error(s), {len(warnings)} warning(s)")
+    if "key_facts" in stats:
+        print(f"{stats['key_facts']} key facts labelled; {stats['rows_missing_a_detail']} row(s) labelled as lacking a needed detail")
     return 1 if errors else 0
 
 
