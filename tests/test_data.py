@@ -187,7 +187,7 @@ def test_synthetic_covers_the_fact_formats():
 
 def test_synthetic_pairs_read_as_sound_arabic():
     import re
-    ascii_digits = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+    ascii_digits = str.maketrans("٠١٢٣٤٥٦٧٨٩٬٫٪", "0123456789,.%")
     pairs = generate_synthetic(6000, seed=13)
     msa = "\n".join(p["msa"] for p in pairs).translate(ascii_digits)
     dialect = "\n".join(p["dialect"] for p in pairs).translate(ascii_digits)
@@ -203,16 +203,25 @@ def test_synthetic_pairs_read_as_sound_arabic():
     assert all(noun == riyal(amount) for amount, noun in counted)
     assert data_prep._riyal("7") == "ريالات" and data_prep._riyal("710") == "ريالات" and data_prep._riyal("710.75") == "ريال"
     # Two amounts set against each other are different amounts ("2500" and "2,500" are one amount).
-    both = re.findall(r"المبلغ في العقد ([\d,.]+) وفي الفاتورة ([\d,.]+)،", dialect)
+    both = re.findall(r"السعر في العرض ([\d,.]+) وفي الفاتورة ([\d,.]+)،", dialect)
     assert len(both) > 50 and all(float(a.replace(",", "")) < float(b.replace(",", "")) for a, b in both)
     # A time window reads in order on a 12-hour dial: the second time is one to four hours after the first ("11:10", then "1:40").
-    windows = re.findall(r"الفني قال بين (\d+):\d+ و (\d+):\d+", dialect)
+    windows = re.findall(r"قالوا بين (\d+):\d+ و (\d+):\d+", dialect)
     assert len(windows) > 50 and all(1 <= (int(h2) - int(h1)) % 12 <= 4 for h1, h2 in windows)
     assert {(int(h1), int(h2)) for h1, h2 in windows} & {(11, 1), (12, 2), (10, 12)}   # windows across noon occur and are in order
     # The name templates are written in the masculine, so only men's names fill them.
     assert not re.search("ريما|غادة|لجين|دانة|شهد|وعد الجهني|جود الشمري", dialect)
     # A payment goes through a way to pay, not through a government service.
     assert not re.search(r"دفعت [\d,.]+ ريال من (?:Absher|Tawakkalna|Nafath|Qiwa)", dialect)
+    # The year-first date is kept for messages that are already formal; nobody types it in a chat.
+    iso = [p for p in pairs if re.search(r"\d{4}-\d{2}-\d{2}", p["dialect"].translate(ascii_digits))]
+    assert iso and all(p["dialect"] == p["msa"] for p in iso)
+    # Arabic-Indic digits come with the Arabic thousands separator and percent sign, on both sides alike.
+    arabic = [p for p in pairs if re.search("[٠-٩]", p["dialect"])]
+    assert arabic and not any(re.search(r"[٠-٩][,%]|[,%][٠-٩]", p["dialect"] + p["msa"]) for p in arabic)
+    # A package costs thousands, and the dearer price is the one the customer complains about.
+    packages = re.findall(r"الباقة حقت \S+ بـ ([\d,]+) ريال وانا شفتها في موقعكم بـ ([\d,]+)", dialect)
+    assert len(packages) > 50 and all(2000 < int(low.replace(",", "")) < int(high.replace(",", "")) for high, low in packages)
 
 
 def test_prepare_refuses_negative_limits(tmp_path):
@@ -380,3 +389,45 @@ def test_cli_reports_bad_csv(tmp_path, capsys):
     write_csv(cpath, ["a", "b"], [["x", "y"]])
     code = data_prep.main(["--golden", str(gpath), "--min-golden-rows", "3", "--corpus-csv", str(cpath), "--out", str(tmp_path / "o")])
     assert code == 1 and "Columns found" in capsys.readouterr().out
+
+
+# ------------------------- key-fact and missing labels ---------------------- #
+def labelled(i, **kw):
+    base = row(i, "ابغى احجز تذكرتين لجدة يوم الخميس", "أريد حجز تذكرتين إلى جدة يوم الخميس.", key_facts=["تذكرتين", "جدة", "الخميس"], missing=[])
+    base.update(kw)
+    return base
+
+
+def test_labelled_rows_pass_and_are_counted():
+    rows = [labelled(1), labelled(2, source="ابغى احجز 3 تذاكر", reference="أريد حجز 3 تذاكر.", key_facts=["3 تذاكر"], missing=["date", "destination"])]
+    errors, warnings, stats = validate_rows(rows, min_rows=2)
+    assert errors == [] and warnings == [] and stats["key_facts"] == 4 and stats["rows_missing_a_detail"] == 1
+
+
+def test_key_fact_must_be_worded_as_in_the_reference():
+    errors, _, _ = validate_rows([labelled(1, key_facts=["تذكرتين", "الجمعة"])], min_rows=1)
+    assert any("key fact 'الجمعة' is not found in the reference" in e for e in errors)
+    errors, _, _ = validate_rows([labelled(1, key_facts=["تذكرتان | تذكرتين", "جدة", "الخميس"])], min_rows=1)
+    assert errors == []                                          # either wording of an alternative may be the one in the reference
+
+
+@pytest.mark.parametrize("bad", [{"missing": ["recipient"]}, {"missing": ["date", "date"]}, {"missing": "date"}, {"key_facts": "جدة"}, {"key_facts": ["جدة", ""]}])
+def test_label_fields_are_checked(bad):
+    errors, _, _ = validate_rows([labelled(1, **bad)], min_rows=1)
+    assert any("missing must be a list" in e or "key_facts must be a list" in e for e in errors)
+
+
+def test_a_file_is_labelled_on_every_row_or_on_none():
+    errors, _, _ = validate_rows([labelled(1), row(2, "ابغى موعد يوم 4/5", "أريد موعداً في يوم 4/5.")], min_rows=2)
+    assert any("carry no key_facts and missing labels although other rows do: g002" in e for e in errors)
+    errors, _, stats = validate_rows(golden(3), min_rows=3)
+    assert errors == [] and "key_facts" not in stats             # a file without labels is validated as before
+
+
+def test_unlabelled_facts_and_empty_labels_are_pointed_out():
+    rows = [labelled(1, key_facts=["تذكرتين"]),
+            labelled(2, source="ابغى احجز 3 تذاكر لدبي بكره", reference="أريد حجز 3 تذاكر إلى دبي غداً.", key_facts=[])]
+    errors, warnings, _ = validate_rows(rows, min_rows=2)
+    assert errors == []
+    assert any("1 row(s) have no key fact labelled" in w and "g002" in w for w in warnings)
+    assert any("2 row(s) have a number, date, code, day, place or listed name in the reference that is not in key_facts" in w for w in warnings)

@@ -8,8 +8,9 @@
 Sources
   corpus     the multidialectal parallel corpus (Almeman 2025, Zenodo 17776617): Saudi-MSA pairs.
              Short travel sentences; almost none contains a number.
-  synthetic  template pairs with numbers, dates, times, codes and names, generated here with a
-             fixed seed. They are the only training pairs that teach the model to keep facts.
+  synthetic  template pairs for a travel booking desk with numbers, dates, times, days, places,
+             booking codes and names, generated here with a fixed seed. They are the only training
+             pairs that teach the model to keep facts and not to add a detail the message lacks.
   team       pairs written by the team (JSONL with "dialect" and "msa")
 
 Guarantee: no training or validation pair equals, nearly equals or contains a
@@ -114,48 +115,71 @@ def load_team_jsonl(paths: list[str]) -> list[dict]:
 # --------------------------------------------------------------------------- #
 # Synthetic pairs with facts (every name, number and address is invented)
 # --------------------------------------------------------------------------- #
-# Men's names only: the four templates that take a name are written in the masculine ("الموظف", "اسمه", "وعدني").
-_NAMES = ["نواف الدوسري", "هشام القرني", "طلال الحربي", "مشعل العنزي", "بدر المطيري", "تركي العسيري", "راكان البلوي"]
+# Men's first names only: the templates that take a name are written in the masculine ("الموظف", "اسمه", "وعدني").
+_NAMES = ["نواف", "هشام", "طلال", "مشعل", "بدر", "تركي", "راكان", "فيصل", "ثامر", "زياد"]
 _CITIES = ["الرياض", "جدة", "الدمام", "أبها", "تبوك", "حائل", "بريدة", "الطائف", "الخبر", "ينبع", "نجران", "جازان", "الأحساء"]
-_APPS = ["Absher", "Tawakkalna", "Nafath", "Qiwa"]   # services a person signs in to
+_ABROAD = ["دبي", "القاهرة", "إسطنبول", "الدوحة", "المنامة", "الكويت", "مسقط", "كوالالمبور", "جاكرتا", "بانكوك", "لندن", "باريس",
+           "تبليسي", "باكو", "المالديف"]
+_VISA_PLACES = ["لندن", "باريس", "روما", "مدريد", "ميونخ", "فيينا", "جنيف"]   # places a traveller from the Gulf asks a visa for
+_PACKAGE_PRICES = [2900, 3750, 4800, 6400, 7600, 9800, 12000, 15000]
+# (as typed in dialect, formal spelling). The fact checker reads both spellings as the same day.
+_WEEKDAYS = [("السبت", "السبت"), ("الاحد", "الأحد"), ("الاثنين", "الاثنين"), ("الثلوث", "الثلاثاء"), ("الثلاثاء", "الثلاثاء"),
+             ("الربوع", "الأربعاء"), ("الاربعاء", "الأربعاء"), ("الخميس", "الخميس"), ("الجمعة", "الجمعة")]
+_RELATIVE_DAYS = [("بكره", "غداً"), ("بعد بكره", "بعد غد"), ("اليوم", "اليوم")]
 _PAYMENT = ["Mada", "Apple Pay", "STC Pay"]            # ways to pay
-_MAILBOXES = ["support", "info", "billing", "hr", "service", "help", "sales", "admissions"]
-_ARABIC_INDIC = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
+_MAILBOXES = ["support", "info", "billing", "tickets", "service", "help", "sales", "travel"]
+_ARABIC_INDIC = str.maketrans("0123456789,%", "٠١٢٣٤٥٦٧٨٩٬٪")   # with the Arabic thousands separator and percent sign
+_DECIMAL_POINT = re.compile(r"(?<=\d)\.(?=\d)")
 _HAS_LATIN = re.compile(r"[A-Za-z]")
 
-# (dialect template, MSA template). Both sides carry exactly the same slots.
+# (dialect template, MSA template) for a travel booking desk. Both sides carry exactly the same slots.
+# {lcity} and {ldest} are the place with "ل" attached, as it is typed ("لجدة", "للرياض").
+# The last group asks for something without giving a needed detail: the MSA side adds none.
 _TEMPLATES = [
-    ("ابغى احجز موعد يوم {d} الساعة {t}", "أريد حجز موعد في يوم {d} الساعة {t}."),
-    ("وش صار على طلبي رقم {ref}؟ له {n} ايام", "ماذا حدث لطلبي رقم {ref}؟ مضى عليه {n} أيام."),
-    ("دفعت {sar} ريال من {pay} وما وصلني شي", "دفعتُ {sar} {riyal} عن طريق {pay} ولم يصلني شيء."),
-    ("الحين انا في {city} وابغى اغير الموعد لين {d}", "أنا الآن في {city} وأريد تغيير الموعد إلى {d}."),
-    ("ليش تأخر الطلب {ref}؟ قلتوا يوصل خلال {n} ايام", "لماذا تأخر الطلب {ref}؟ ذكرتم أنه يصل خلال {n} أيام."),
-    ("ودي اكلم الموظف {name} بخصوص المعاملة {ref}", "أود التحدث مع الموظف {name} بخصوص المعاملة {ref}."),
-    ("وين اقدر استلم الشحنة رقم {ref} في {city}؟", "أين أستطيع استلام الشحنة رقم {ref} في {city}؟"),
-    ("مو معقول انتظر {n} ساعات والموعد كان {t}", "ليس معقولاً أن أنتظر {n} ساعات والموعد كان {t}."),
-    ("عشان كذا ابغى استرجع {sar} ريال قبل {d}", "لذلك أريد استرجاع {sar} {riyal} قبل {d}."),
-    ("اللي كلمني اسمه {name} وقال تعال بكره الساعة {t}", "الذي حدثني اسمه {name}، وقال احضر غداً الساعة {t}."),
-    ("لسا ما وصلتني رسالة التفعيل على {app} من {n} ايام", "لم تصلني رسالة التفعيل على {app} منذ {n} أيام."),
-    ("يرجى تحديث البيانات قبل {d} الساعة {t}.", "يرجى تحديث البيانات قبل {d} الساعة {t}."),
-    ("ابي اعرف كم باقي على الفاتورة {ref}، دفعت {sar} من اصل {sar2}", "أريد أن أعرف كم بقي على الفاتورة {ref}، فقد دفعتُ {sar} من أصل {sar2}."),
-    ("ارسلوا لي نسخة من العقد على {email} قبل {d}", "أرسلوا إليّ نسخة من العقد على {email} قبل {d}."),
-    ("سجلوا عندكم رقم المرجع {code} عشان لا اضطر اعيده كل مره", "سجّلوا لديكم رقم المرجع {code} حتى لا أضطر إلى إعادته في كل مرة."),
-    ("متى توصل القطعة؟ الفني قال بين {t} و {t2} وما جا احد", "متى تصل القطعة؟ قال الفني بين {t} و {t2} ولم يحضر أحد."),
-    ("سجلت في الدورة اللي تبدأ {d} ودفعت {sar} ريال، متى توصلني بيانات الدخول؟", "سجّلتُ في الدورة التي تبدأ في {d} ودفعتُ {sar} {riyal}، فمتى تصلني بيانات الدخول؟"),
-    ("باقتي {q} قيقا وخلصت قبل نهاية الشهر، ليش؟", "باقتي {q} جيجابايت وانتهت قبل نهاية الشهر، فلماذا؟"),
-    ("العميل {name} ينتظر من الساعة {t} ومحد استقبله", "العميل {name} ينتظر منذ الساعة {t} ولم يستقبله أحد."),
-    ("ابغى اسدد {sar} ريال الحين والباقي {sar2} الشهر الجاي", "أريد أن أسدد {sar} {riyal} الآن والباقي {sar2} في الشهر القادم."),
-    ("فرع {city} يقفل الساعة {t} ولا {t2}؟", "هل يغلق فرع {city} الساعة {t} أم {t2}؟"),
-    ("الفاتورة فيها {n} اصناف وانا ماخذ {n2} بس", "في الفاتورة {n} أصناف وأنا لم آخذ سوى {n2}."),
-    ("رقم المرجع {code} وتاريخ الطلب {d}، ابي اعرف الحالة", "رقم المرجع {code} وتاريخ الطلب {d}، وأريد معرفة الحالة."),
-    ("نسبة الانجاز مكتوب {pct} وهي ما وصلت حتى {pct2}", "نسبة الإنجاز المكتوبة {pct} وهي لم تبلغ حتى {pct2}."),
-    ("كلمت {name} يوم {d} ووعدني يرد خلال {n} ايام وللحين ما رد", "تحدثتُ مع {name} يوم {d} ووعدني بالرد خلال {n} أيام ولم يرد حتى الآن."),
-    ("نفيدكم بأن موعد المراجعة هو {d} الساعة {t} في فرع {city}.", "نفيدكم بأن موعد المراجعة هو {d} الساعة {t} في فرع {city}."),
-    ("الرابط اللي ارسلتوه ما يفتح، ارسلوه مره ثانيه على {email}", "الرابط الذي أرسلتموه لا يفتح، فأرسلوه مرة أخرى على {email}."),
-    ("المبلغ في العقد {sar} وفي الفاتورة {sar2}، ايهم الصح؟", "المبلغ في العقد {sar} وفي الفاتورة {sar2}، فأيهما الصحيح؟"),
-    ("لي {n} شهور اطالب بشهادة الخبرة ومحد عطاني وجه", "منذ {n} أشهر وأنا أطالب بشهادة الخبرة ولم يهتم بي أحد."),
-    ("تطبيق {app} يطلب تحديث وانا محدثه امس الساعة {t}", "تطبيق {app} يطلب التحديث وقد حدّثتُه أمس الساعة {t}."),
-    ("ابغى انقل حجزي من {city} الى {city2} بنفس التاريخ {d}", "أريد نقل حجزي من {city} إلى {city2} في التاريخ نفسه {d}."),
+    ("ودي اسافر {lcity} يوم {day_d} {d}، فيه مقاعد على رحلة {t}؟", "أود السفر إلى {city} يوم {day_m} {d}، فهل توجد مقاعد على رحلة الساعة {t}؟"),
+    ("دبروا لنا {n} مقاعد على رحلة {day_d} من {city} {lcity2}", "وفّروا لنا {n} مقاعد على رحلة {day_m} من {city} إلى {city2}."),
+    ("وش صار على الحجز {pnr}؟ دفعت {sar} ريال من {n} ايام وما جاني تأكيد", "ماذا حدث للحجز {pnr}؟ دفعتُ {sar} {riyal} منذ {n} أيام ولم يصلني تأكيد."),
+    ("الحين انا في {city} وابي أأجل رجعتي لين {d}، رقم الحجز {ref}", "أنا الآن في {city} وأريد تأجيل عودتي إلى {d}، ورقم الحجز {ref}."),
+    ("ليش الفاتورة {sar2} والسعر اللي قلتوه {sar}؟ الحجز {ref}", "لماذا الفاتورة {sar2} والسعر الذي ذكرتموه {sar}؟ رقم الحجز {ref}."),
+    ("ودي اكلم الموظف {name} بخصوص الحجز {ref}", "أود التحدث مع الموظف {name} بخصوص الحجز {ref}."),
+    ("وين استلم السيارة اللي حجزتها في {city}؟ رقم الحجز {ref}", "أين أستلم السيارة التي حجزتها في {city}؟ رقم الحجز {ref}."),
+    ("مو معقول ننتظر {n} ساعات في المطار والرحلة كانت {t}", "ليس معقولاً أن ننتظر {n} ساعات في المطار والرحلة كانت الساعة {t}."),
+    ("الرحلة انلغت من عندكم، عشان كذا ابغى ترجعون لي {sar} ريال قبل {d}، الحجز {pnr}", "أُلغيت الرحلة من جهتكم، لذلك أريد أن تعيدوا إليّ {sar} {riyal} قبل {d}، رقم الحجز {pnr}."),
+    ("اللي كلمني اسمه {name} وقال الرحلة {rel_d} الساعة {t}", "الذي حدثني اسمه {name}، وقال إن الرحلة {rel_m} الساعة {t}."),
+    ("لسا ما وصلتني التذاكر على {email} من {n} ايام", "لم تصلني التذاكر على {email} منذ {n} أيام."),
+    ("يرجى تأكيد الحجز قبل {d} الساعة {t}.", "يرجى تأكيد الحجز قبل {d} الساعة {t}."),
+    ("ابي اعرف كم باقي علي في الحجز {ref}، دفعت {sar} من اصل {sar2}", "أريد أن أعرف كم بقي عليّ في الحجز {ref}، فقد دفعتُ {sar} من أصل {sar2}."),
+    ("ارسلوا لي تأكيد الحجز على {email} قبل {d}", "أرسلوا إليّ تأكيد الحجز على {email} قبل {d}."),
+    ("سجلوا عندكم رقم الحجز {pnr} عشان ما اضطر اعيده كل مره", "سجّلوا لديكم رقم الحجز {pnr} حتى لا أضطر إلى إعادته في كل مرة."),
+    ("متى يجي الباص؟ قالوا بين {t} و {t2} وما جا احد", "متى تأتي الحافلة؟ قالوا بين {t} و {t2} ولم يأتِ أحد."),
+    ("سجلت في الرحلة اللي تطلع {d} ودفعت {sar} ريال، متى توصلني التذاكر؟", "سجّلتُ في الرحلة التي تنطلق في {d} ودفعتُ {sar} {riyal}، فمتى تصلني التذاكر؟"),
+    ("الفندق في {dest} بعيد عن المطار {n} كيلو ولا اكثر؟", "هل يبعد الفندق في {dest} عن المطار {n} كيلومترات أم أكثر؟"),
+    ("المسافر {name} ينتظر عند البوابة من الساعة {t} ومحد استقبله", "المسافر {name} ينتظر عند البوابة منذ الساعة {t} ولم يستقبله أحد."),
+    ("ابغى ادفع {sar} ريال الحين والباقي {sar2} قبل السفر", "أريد أن أدفع {sar} {riyal} الآن والباقي {sar2} قبل السفر."),
+    ("مكتبكم في {city} يقفل الساعة {t} ولا {t2}؟", "هل يغلق مكتبكم في {city} الساعة {t} أم {t2}؟"),
+    ("الحجز فيه {n} مسافرين وحنا {n2} بس", "في الحجز {n} مسافرين ونحن {n2} فقط."),
+    ("رقم الحجز {pnr} وتاريخ السفر {d}، ابي اعرف هل تأكد ولا لا", "رقم الحجز {pnr} وتاريخ السفر {d}، وأريد أن أعرف هل أُكِّد الحجز أم لا."),
+    ("الخصم مكتوب {pct} وانتم حسبتوه {pct2}", "الخصم المكتوب {pct} وأنتم حسبتموه {pct2}."),
+    ("كلمت {name} يوم {d} ووعدني يرسل العرض خلال {n} ايام وللحين ما ارسل", "تحدثتُ مع {name} يوم {d} ووعدني بإرسال العرض خلال {n} أيام ولم يرسله حتى الآن."),
+    ("نفيدكم بأن موعد الرحلة إلى {city} هو {d} الساعة {t}.", "نفيدكم بأن موعد الرحلة إلى {city} هو {d} الساعة {t}."),
+    ("الرابط اللي ارسلتوه للدفع ما يفتح، ارسلوه مره ثانيه على {email}", "رابط الدفع الذي أرسلتموه لا يفتح، فأرسلوه مرة أخرى على {email}."),
+    ("السعر في العرض {sar} وفي الفاتورة {sar2}، ايهم الصح؟", "السعر في العرض {sar} وفي الفاتورة {sar2}، فأيهما الصحيح؟"),
+    ("لي {n} شهور اطالب بتعويض الرحلة الملغية ومحد عطاني وجه، رقمها {ref}", "منذ {n} أشهر وأنا أطالب بتعويض الرحلة الملغاة ولم يهتم بي أحد، ورقمها {ref}."),
+    ("ابغى انقل حجزي {ref} من {city} الى {city2} بنفس التاريخ {d}", "أريد نقل حجزي {ref} من {city} إلى {city2} في التاريخ نفسه {d}."),
+    ("نبي {n} غرف في {dest} من {d} لمدة {n2} ليالي", "نريد {n} غرف في {dest} من {d} لمدة {n2} ليالٍ."),
+    ("فيه رحلة {ldest} {rel_d} بعد الساعة {t}؟", "هل توجد رحلة إلى {dest} {rel_m} بعد الساعة {t}؟"),
+    ("الرحلة من {city} {ldest} تأخرت {n} ساعات، وش التعويض؟", "تأخرت الرحلة من {city} إلى {dest} {n} ساعات، فما التعويض؟"),
+    ("دفعت {sar} ريال من {pay} وما وصلني تأكيد الحجز", "دفعتُ {sar} {riyal} عن طريق {pay} ولم يصلني تأكيد الحجز."),
+    ("جوازي ينتهي {d}، يمديني اسافر {ldest} ولا لازم اجدده؟", "ينتهي جواز سفري في {d}، فهل يمكنني السفر إلى {dest} أم يجب أن أجدده؟"),
+    ("حجزنا {n} تذاكر والنظام طلع {n2} بس، الحجز {pnr}", "حجزنا {n} تذاكر وأظهر النظام {n2} فقط، رقم الحجز {pnr}."),
+    ("التأشيرة حقت {visa} تاخذ {n} ايام ولا اكثر؟", "هل تستغرق تأشيرة {visa} {n} أيام أم أكثر؟"),
+    ("الباقة حقت {dest} بـ {big2} ريال وانا شفتها في موقعكم بـ {big}", "سعر باقة {dest} {big2} {riyal_big2}، وقد رأيتها في موقعكم بـ {big}."),
+    # A needed detail is not given, and the MSA side does not supply it.
+    ("ودنا نسافر {ldest} بس ما حددنا متى، وش تنصحونا؟", "نود السفر إلى {dest} لكننا لم نحدد الموعد، فبماذا تنصحوننا؟"),
+    ("ابي اطلع رحلة يوم {day_d} بس ما قررت وين", "أريد السفر في رحلة يوم {day_m} لكنني لم أقرر الوجهة."),
+    ("ابغى اكنسل رحلة {dest} وماني حافظ رقم الحجز", "أريد إلغاء رحلة {dest} ولا أحفظ رقم الحجز."),
+    ("نبي فندق لـ {n} اشخاص، وما عندنا مكان محدد ولا تاريخ", "نريد فندقاً لـ {n} أشخاص، وليس لدينا مكان محدد ولا تاريخ."),
+    ("ابغى اعدل اسم المسافر {name} ورقم الحجز مو عندي الحين", "أريد تعديل اسم المسافر {name} ورقم الحجز ليس معي الآن."),
 ]
 
 
@@ -169,11 +193,13 @@ def _amount(rng: random.Random) -> str:
     return f"{rng.randint(20, 900)}.{rng.choice(['50', '75', '25', '99'])}"
 
 
-def _date(rng: random.Random) -> str:
+def _date(rng: random.Random, formal: bool = False) -> str:
+    """A date as people type it. The year-first form is kept for the messages that are already formal:
+    nobody types it in a chat."""
     day, month, kind = rng.randint(1, 28), rng.randint(1, 12), rng.random()
     if kind < 0.55:
         return f"{day}/{month}"
-    if kind < 0.9:
+    if kind < 0.9 or not formal:
         return f"{day}/{month}/{rng.choice([2026, 2027])}"
     return f"{rng.choice([2026, 2027])}-{month:02d}-{day:02d}"
 
@@ -191,9 +217,17 @@ def _later(rng: random.Random, clock: str) -> str:
     return f"{hour}:{rng.choice(_MINUTES)}"
 
 
-def _code(rng: random.Random) -> str:
-    letters = "".join(rng.choice("ABCDEFGHJKLMNPQRSTUVWXYZ") for _ in range(rng.choice([2, 3])))
-    return letters + rng.choice(["-", ""]) + str(rng.randint(1000, 999999))
+def _pnr(rng: random.Random) -> str:
+    """A six-character booking code with at least one letter and one digit, such as "QX7T2M"."""
+    while True:
+        code = "".join(rng.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(6))
+        if any(ch.isdigit() for ch in code) and any(ch.isalpha() for ch in code):
+            return code
+
+
+def _to(place: str) -> str:
+    """The place with "ل" attached, as it is typed: "لجدة", "للرياض"."""
+    return "لل" + place[2:] if place.startswith("ال") else "ل" + place
 
 
 def _value(number: str) -> float:
@@ -224,7 +258,7 @@ def _riyal(amount: str) -> str:
 
 
 def generate_synthetic(n: int, seed: int) -> list[dict]:
-    """`n` template pairs carrying numbers, dates, times, codes, e-mails and names.
+    """`n` template pairs carrying numbers, dates, times, days, places, booking codes, e-mails and names.
 
     Reproducible from `seed`. About one pair in five without Latin text is
     written in Arabic-Indic digits on both sides."""
@@ -238,17 +272,24 @@ def generate_synthetic(n: int, seed: int) -> list[dict]:
         t2 = _later(rng, t)
         pct2, pct = sorted(_two(rng, lambda r: f"{r.choice([5, 10, 15, 20, 25, 30, 40, 50, 70])}%"), key=_value)
         city, city2 = rng.sample(_CITIES, 2)
+        dest = rng.choice(_ABROAD)
+        big, big2 = sorted(rng.sample(_PACKAGE_PRICES, 2))
+        day_d, day_m = rng.choice(_WEEKDAYS)
+        rel_d, rel_m = rng.choice(_RELATIVE_DAYS)
         # 3 to 10 only: the templates use plural nouns ("أيام", "ساعات"), which is the right form for these numbers.
         n1, n2 = sorted(rng.sample(range(3, 11), 2), reverse=True)
         slots = {
-            "n": str(n1), "n2": str(n2), "q": str(rng.choice([5, 10, 20, 30, 50, 100, 200])), "d": _date(rng), "t": t, "t2": t2, "sar": sar, "sar2": sar2, "riyal": _riyal(sar), "pct": pct, "pct2": pct2,
-            "name": rng.choice(_NAMES), "city": city, "city2": city2, "app": rng.choice(_APPS), "pay": rng.choice(_PAYMENT),
-            "ref": str(rng.randint(10000, 99999999)), "code": _code(rng),
+            "n": str(n1), "n2": str(n2), "d": _date(rng, formal=dialect_t == msa_t), "t": t, "t2": t2, "sar": sar, "sar2": sar2,
+            "riyal": _riyal(sar), "big": str(big), "big2": str(big2), "riyal_big2": _riyal(str(big2)), "visa": rng.choice(_VISA_PLACES),
+            "pct": pct, "pct2": pct2, "name": rng.choice(_NAMES), "city": city, "city2": city2,
+            "lcity": _to(city), "lcity2": _to(city2), "dest": dest, "ldest": _to(dest), "day_d": day_d, "day_m": day_m,
+            "rel_d": rel_d, "rel_m": rel_m, "pay": rng.choice(_PAYMENT),
+            "ref": str(rng.randint(10000, 99999999)), "pnr": _pnr(rng),
             "email": f"{rng.choice(_MAILBOXES)}@example.{rng.choice(['com', 'org', 'net'])}",
         }
         dialect, msa = dialect_t.format(**slots), msa_t.format(**slots)
         if rng.random() < 0.2 and not _HAS_LATIN.search(dialect):
-            dialect, msa = dialect.translate(_ARABIC_INDIC), msa.translate(_ARABIC_INDIC)
+            dialect, msa = (_DECIMAL_POINT.sub("٫", text).translate(_ARABIC_INDIC) for text in (dialect, msa))
         pairs.append({"dialect": dialect, "msa": msa, "source": "synthetic"})
     return pairs
 

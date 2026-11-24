@@ -2,13 +2,13 @@
 
 ## Model objective
 
-Rewriting short Saudi-dialect messages into formal Modern Standard Arabic while retaining intent and facts (numbers, dates, times, Latin-script content and explicitly listed names).
+Rewriting short Saudi-dialect messages into formal Modern Standard Arabic while retaining intent and facts (numbers, dates, times, Latin-script content and explicitly listed names). The service is the booking-support desk of a travel agency: customers' messages about bookings, changes, cancellations, refunds, enquiries and complaints.
 
 - **Base model:** `Qwen/Qwen3-1.7B`, within the course's 4B parameter limit.
 - **Adaptation:** supervised LoRA; QLoRA fallback described in `notebooks/train_qwen3_lora_colab.ipynb`.
 - **Deployment plan:** local Ollama inference and right-to-left Streamlit interface.
-- **Pipeline:** rewrite → deterministic fact comparison → one repair attempt → release/withhold; semantic equivalence is not guaranteed by rules.
-- **Repository:** GitHub project prepared for publication under the proposed name `dhrtt990-blip/saudi-dialect-to-msa`; publication and commit must be verified before presenting a live URL as completed.
+- **Pipeline:** missing-information check (ask for the date, destination or booking reference instead of rewriting) → rewrite → deterministic fact comparison (now including days, months and listed places) → one repair attempt → release/withhold; semantic equivalence is not guaranteed by rules.
+- **Repository:** `dhrtt990-blip/saudi-dialect-to-msa` on GitHub (public).
 
 ## Training provenance
 
@@ -34,4 +34,6 @@ Also report wrong→right versus right→wrong examples, error categories, ten a
 - The candidate corpus is short, often machine-generated and travel-focused; generalization to other dialect regions and domains is uncertain.
 - Some synthetic training templates and golden examples share an AI drafting process, so data leakage and style shortcuts require careful checks.
 - Proper-name matching only covers names explicitly supplied as `must_keep`.
+- Days, months and places are found by short word lists. A place outside the list is not checked, and a listed word is read as a day or a place whatever it means in the sentence.
+- The missing-information check is a short set of rules on words. It misses requests worded in ways the rules do not cover and sometimes asks needlessly; both are counted on the golden test.
 - Final adapter sharing and licence will be chosen after confirming upstream rights.

@@ -86,9 +86,11 @@ def read_jsonl(path: str | Path) -> list[dict]:
 
 def write_jsonl(path: str | Path, rows: Iterable[dict]) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as fh:
+    # Bytes, not text: on Windows a text file gets "\r\n" line ends, and the SHA-256 recorded for the golden
+    # test would then differ from the file Git stores.
+    with open(path, "wb") as fh:
         for row in rows:
-            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+            fh.write((json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8"))
 
 
 def sha256_file(path: str | Path) -> str:
