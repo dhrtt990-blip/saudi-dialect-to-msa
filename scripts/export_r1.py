@@ -24,6 +24,7 @@ def export(run_dir: Path, export_dir: Path) -> dict:
     import torch
     from peft import PeftConfig, PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers.utils.hub import cached_file
 
     provenance = json.loads((run_dir / 'provenance.json').read_text())
     manifest = json.loads((ROOT / 'review/v3_r1_revision_manifest.json').read_text())
@@ -37,14 +38,15 @@ def export(run_dir: Path, export_dir: Path) -> dict:
     base_id = config.base_model_name_or_path
     assert base_id == 'Qwen/Qwen3-1.7B'
     revision = provenance.get('base_model_revision')
-    assert revision, 'Record trainer.model.config._commit_hash before releasing the training model'
+    assert revision, 'Record the training base snapshot revision before export'
     export_dir.mkdir(parents=True, exist_ok=False)
     base_dir, merged_dir = export_dir / 'base', export_dir / 'merged'
     tok = AutoTokenizer.from_pretrained(str(adapter))
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     dtype = torch.float16 if device.startswith('cuda') else torch.float32
     base = AutoModelForCausalLM.from_pretrained(base_id, revision=revision, dtype=dtype, device_map=device)
-    base_revision = getattr(base.config, '_commit_hash', None)
+    # Transformers 5 no longer guarantees a config._commit_hash attribute.
+    base_revision = Path(cached_file(base_id, 'config.json', revision=revision, local_files_only=True)).parent.name
     assert base_revision == revision
     # Save the unadapted weights before PeftModel mutates this model.
     base.save_pretrained(base_dir, max_shard_size='2GB')
