@@ -85,6 +85,7 @@ def predict_model_only(client, example: dict) -> dict:
         "released": r.ok,
         "status": "MODEL_ONLY" if r.ok else "NO_OUTPUT",
         "repaired": False,
+        "attempts": 1,
     }
 
 
@@ -99,6 +100,10 @@ def predict_full(pipeline: RewritePipeline, example: dict) -> dict:
         "released": res.released,
         "status": res.status,
         "repaired": res.repaired,
+        "attempts": res.attempts,
+        "first_candidate": res.first_candidate,
+        "first_check": res.first_check,
+        "final_check": res.check,
         "first_check_ok": res.first_check.get("ok") if res.first_check else None,
     }
 

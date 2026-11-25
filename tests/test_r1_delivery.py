@@ -6,6 +6,8 @@ import pytest
 from scripts.merge_r1_judgments import merge
 from scripts.summarize_r1 import public_score, sign_test
 from src.evaluate import JUDGMENT_COLUMNS, load_judgments
+from src.evaluate import predict_full
+from src.pipeline import RewritePipeline, ScriptedClient
 
 
 def sheet(path, **changes):
@@ -78,3 +80,12 @@ def test_windows_multiline_cells_remain_importable(tmp_path):
     sheet(b, key_facts='1. first fact\n2. second fact')
     merge(template, a, b, out)
     assert load_judgments(out)['unit_test_key']['verdict'] is None
+
+
+def test_repair_evidence_keeps_first_and_final_candidates():
+    pipeline = RewritePipeline(ScriptedClient(['موعدي يوم 7/3.', 'موعدي يوم 5/3.']), ask=False)
+    result = predict_full(pipeline, {'id': 'unit-r1', 'source': 'موعدي يوم 5/3'})
+    assert result['attempts'] == 2 and result['repaired'] is True
+    assert result['first_candidate'] == 'موعدي يوم 7/3.'
+    assert result['output'] == 'موعدي يوم 5/3.'
+    assert result['first_check']['ok'] is False and result['final_check']['ok'] is True

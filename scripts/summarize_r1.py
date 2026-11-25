@@ -51,6 +51,11 @@ def summarize(directory: Path) -> dict:
         assert {r['id'] for r in score['per_example']} == {f't{i:03}' for i in range(1, 101)}
         prediction_hashes[name] = sha256_file(directory / f'predictions_{name}.jsonl')
         systems[name] = public_score(score)
+        predictions = [json.loads(line) for line in (directory / f'predictions_{name}.jsonl').read_text().splitlines()]
+        assert len(predictions) == 100 and {row['id'] for row in predictions} == {f't{i:03}' for i in range(1, 101)}, 'Incomplete or duplicate prediction rows'
+        known_attempts = all(isinstance(row.get('attempts'), int) for row in predictions)
+        systems[name]['repair_attempts'] = sum(row['attempts'] >= 2 for row in predictions) if known_attempts else None
+        systems[name]['withheld_after_repair'] = sum(row['attempts'] >= 2 and not row['released'] for row in predictions) if known_attempts else None
     needs = meta['needs']
     exact = needs['asked_exactly'] / needs['incomplete']
     needless = needs['needless_asks'] / needs['complete']

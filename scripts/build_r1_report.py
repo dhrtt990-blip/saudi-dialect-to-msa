@@ -170,6 +170,7 @@ def build(root: Path, out: Path) -> None:
         for key, label in [('baseline', 'Prompted baseline'), ('tuned', 'LoRA alone'), ('full', 'Full pipeline')]
     ])
     para('The three systems rewrite every message under the documented comparison protocol, so the missing-information check is disabled for this comparison and evaluated separately. The baseline prompt was fixed before this R1 evaluation. Temperature is zero and thinking is disabled. Automatic passes require supported facts, no strong lexicon dialect flag, and no unchanged copy where rewriting is required. Human correctness is a separate outcome.')
+    para(f"The full pipeline attempted a repair on {s['full']['repair_attempts']}/100 messages; {s['full']['repaired']} were released after repair and {s['full']['withheld_after_repair']} remained withheld after that attempt. The original and repaired candidates and both fact checks are saved with each full-system prediction.")
     table(['Automatic message error', 'Baseline', 'LoRA', 'Full'], [
         [label, *[s[k]['error_counts'].get(field, 0) for k in ('baseline', 'tuned', 'full')]]
         for field, label in [('dropped_fact', 'Missing supported fact'), ('changed_fact', 'Changed supported fact'),
