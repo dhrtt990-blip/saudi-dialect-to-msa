@@ -67,8 +67,8 @@ class LLMClient(Protocol):
 class OllamaClient:
     """Calls a model served locally by Ollama (`/api/chat`).
 
-    `few_shot=True` is the baseline configuration: the untuned model with the
-    full instruction plus worked examples. The tuned model uses `few_shot=False`,
+    `few_shot=True` is the baseline configuration: the untuned model with its
+    own prompt and worked examples (`build_baseline_messages`). The tuned model uses `few_shot=False`,
     the format it was trained on.
     """
 

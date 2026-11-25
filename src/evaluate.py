@@ -2,7 +2,7 @@
 
     python -m src.evaluate --golden data/golden_test.jsonl --out results
 
-  baseline  the untuned model with the full prompt and worked examples
+  baseline  the untuned model with its own prompt and worked examples
   tuned     the fine-tuned model alone
   full      the fine-tuned model inside the pipeline (checker, repair, withhold)
 

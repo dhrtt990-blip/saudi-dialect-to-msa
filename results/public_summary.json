@@ -1,0 +1,14 @@
+{
+  "golden_release": "v2.2",
+  "messages": 100,
+  "baseline_prompt": "Corrected after initial evaluation, selected on validation data",
+  "automatic_pass": {
+    "baseline": 71,
+    "tuned": 85,
+    "pipeline": 85
+  },
+  "pipeline_released": 90,
+  "pipeline_withheld": 10,
+  "human_judgments": 0,
+  "evaluator": "Use the training-run commit containing this file."
+}

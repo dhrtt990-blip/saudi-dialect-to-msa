@@ -1,9 +1,14 @@
 """Prompts shared by training-data preparation, the baseline and the tuned model.
 
 The same system prompt is used to build the fine-tuning data and at inference,
-so the tuned model is asked in exactly the format it was trained on. The
-untuned baseline additionally receives worked examples as chat turns: that is
-the "untuned model with a good prompt" the guidelines ask for.
+so the tuned model is asked in exactly the format it was trained on.
+
+The untuned baseline is asked in its own format: a one-line system prompt, the
+request written in every user turn before the message, and worked examples.
+Handed the bare message under the tuned model's instruction, the untuned model
+mostly returned it unchanged; this format was chosen on validation pairs on
+25 November 2026 (docs/TRAINING_RUN_2026-11-25.md). It is the "untuned model
+with a good prompt" the guidelines ask for.
 
 Every sentence below is invented.
 """
@@ -42,15 +47,32 @@ FEW_SHOT_EXAMPLES: list[tuple[str, str]] = [
 ]
 
 
-def build_messages(text: str, few_shot: bool = False) -> list[dict]:
-    """Chat messages for one rewrite request."""
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    if few_shot:
-        for source, target in FEW_SHOT_EXAMPLES:
-            messages.append({"role": "user", "content": source})
+BASELINE_SYSTEM_PROMPT = "أنت مساعد لغوي يعيد صياغة الرسائل بالعربية الفصحى الرسمية."
+BASELINE_REQUEST = (
+    "أعد صياغة الرسالة التالية المكتوبة باللهجة السعودية بالعربية الفصحى الرسمية. "
+    "أبقِ الأرقام والتواريخ والأوقات والأسماء كما هي، وأعد النص المحوَّل فقط.\n\nالرسالة: "
+)
+
+
+def build_baseline_messages(text: str) -> list[dict]:
+    """Chat messages for the untuned baseline: the request is written in every user turn.
+
+    The worked example whose answer equals its input is not used here: the prompt that was
+    chosen on validation pairs has only the examples that change their message."""
+    messages = [{"role": "system", "content": BASELINE_SYSTEM_PROMPT}]
+    for source, target in FEW_SHOT_EXAMPLES:
+        if source != target:
+            messages.append({"role": "user", "content": BASELINE_REQUEST + source})
             messages.append({"role": "assistant", "content": target})
-    messages.append({"role": "user", "content": text})
+    messages.append({"role": "user", "content": BASELINE_REQUEST + text})
     return messages
+
+
+def build_messages(text: str, few_shot: bool = False) -> list[dict]:
+    """Chat messages for one rewrite request: the tuned model's format, or the baseline's when `few_shot` is set."""
+    if few_shot:
+        return build_baseline_messages(text)
+    return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": text}]
 
 
 def build_repair_messages(text: str, previous: str, missing: list[str], added: list[str], few_shot: bool = False) -> list[dict]:
