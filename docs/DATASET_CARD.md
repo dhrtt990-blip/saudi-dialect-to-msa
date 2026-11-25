@@ -35,3 +35,7 @@ Because the external travel corpus contains few numbers, synthetic fact-rich tem
 ## Personal data
 
 Use synthetic names, dates, amounts and example-domain addresses only. No real personal/customer records are needed. Review invented names for accidental matches with real individuals and avoid uploading customer messages to a public repository.
+
+## Travel-agency V3 — 25 November 2026 update
+
+A separate, AI-assisted, team-reviewed travel benchmark contains 100 messages, 322 labelled fact entries and 40 messages with missing details. Review evidence is in [V3 team approval](GOLDEN_V3_TEAM_APPROVAL.md) and [manifest](../GOLDEN_V3_RELEASE_MANIFEST.json). V2.2 was frozen in commit eb809eef46f2c9849f305478d7cd7e1c0846e91c and remains unchanged. V3 must be isolated from training/validation and checked for leakage before new experiments. Historical V2.2 results do not establish performance on V3. Instructor approval and licensing are not inferred.
