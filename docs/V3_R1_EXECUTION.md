@@ -10,7 +10,7 @@ The original Zenodo CSV downloaded successfully: 18,375,663 bytes, MD5 `67eea3fc
 
 With seed 13, 8,000 cleaned corpus examples and 2,000 synthetic examples were assembled. Cleaning removed 323 examples; Golden overlap filtering removed 107 more, leaving 9,570 pairs: 8,613 training and 957 validation. Of these, 7,876 are corpus pairs and 1,694 synthetic pairs. The written train/validation files match between Mac and Colab byte for byte. See `review/v3_r1_preparation_summary.json` for counts and checksums.
 
-`scripts/audit_r1.py` independently rechecks every written source and target against the Golden exact/containment/near-duplicate index and its distinctive facts. Both splits have zero remaining matches under the configured thresholds (near duplicate 0.8; shared content 0.6). This is a bounded string-based leakage audit, not proof of semantic independence. Full examples and training files stay in the private team bundle pending licence clarification.
+`scripts/audit_r1.py` separately rechecks every written source and target against the Golden exact/containment/near-duplicate index and its distinctive facts. Both splits have zero remaining matches under the configured thresholds (near duplicate 0.8; shared content 0.6). This is a bounded string-based leakage audit, not proof of semantic independence. Full examples and training files stay in the private team bundle pending licence clarification.
 
 ## Missing information
 

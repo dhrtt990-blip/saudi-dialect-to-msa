@@ -36,13 +36,16 @@ def export(run_dir: Path, export_dir: Path) -> dict:
     assert config.r == 16 and config.lora_alpha == 32
     base_id = config.base_model_name_or_path
     assert base_id == 'Qwen/Qwen3-1.7B'
+    revision = provenance.get('base_model_revision')
+    assert revision, 'Record trainer.model.config._commit_hash before releasing the training model'
     export_dir.mkdir(parents=True, exist_ok=False)
     base_dir, merged_dir = export_dir / 'base', export_dir / 'merged'
     tok = AutoTokenizer.from_pretrained(str(adapter))
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     dtype = torch.float16 if device.startswith('cuda') else torch.float32
-    base = AutoModelForCausalLM.from_pretrained(base_id, dtype=dtype, device_map=device)
+    base = AutoModelForCausalLM.from_pretrained(base_id, revision=revision, dtype=dtype, device_map=device)
     base_revision = getattr(base.config, '_commit_hash', None)
+    assert base_revision == revision
     # Save the unadapted weights before PeftModel mutates this model.
     base.save_pretrained(base_dir, max_shard_size='2GB')
     tok.save_pretrained(base_dir)

@@ -1,21 +1,21 @@
-# NLP Applications — Requirements and Evidence Matrix
+# NLP Applications requirements and evidence
 
-This report separates available files from demonstrated model performance. The golden test was approved by the team according to its leader's 20 November 2026 attestation; named reviewer allocations are explained in `docs/GOLDEN_TEST_TEAM_APPROVAL.md`.
+The active task is booking-support rewriting for the fictional Darb Aljawza Travel agency. New execution uses Golden V3-R1 only. Historical V2.2 results do not satisfy an R1 performance requirement.
 
-| Requirement | Evidence in this repository | Verified status |
+| Requirement group | Evidence | Verified state |
 |---|---|---|
-| One narrow NLP task, model within 4B | Saudi dialect → MSA, Qwen3-1.7B | Task and model selected |
-| LoRA/QLoRA fine-tuning | Colab notebook | Pipeline code prepared; actual fine-tuning has no results yet |
-| Baseline/tuned/full comparative evaluation | `src/evaluate.py` | Evaluation logic implemented; real model outcomes are not measured |
-| Verification-and-repair pipeline | `src/pipeline.py`, `src/facts.py` | Code present and mock scenarios tested |
-| Local inference and RTL interface | Ollama setup, `app/streamlit_app.py` | Local trained-model demo has not been demonstrated |
-| Approximately 100 reviewed golden examples | `data/golden_test.jsonl`, review workbook and leader attestation | 100/100 reported approved; strict format/fact checks passed |
-| Golden freeze before fine-tuning | Golden SHA-256 in team approval report | Local release prepared; GitHub commit needs to be made before training |
-| Dataset origins, usage permissions, split | `docs/DATASET_CARD.md` | Known corpus license discrepancy documented; processed run statistics require execution |
-| Golden / training split separation | Deduplication and overlap checks in `src/data_prep.py` | Controls coded; inspect actual training outputs after generating them |
-| Ten adversarial safety cases | `data/safety_inputs.jsonl`, `src/safety_check.py` | Mock-only trial done; real-model execution and human judgments not measured |
-| Model card / weights | `docs/MODEL_CARD.md` and training notebook | Model card includes setup and evaluation protocol; adapter not trained/published |
-| Public GitHub and clean clone | Repository package, CI workflow | Upload and actual GitHub Actions execution need verification |
-| Individual contribution evidence | Team review register, approval record | Team leader directly confirms 25 owner approvals and 25 reciprocal reviews per member, conducted in his presence |
+| Tests and CI | Local test logs in the private bundle; [CI on ff7a576](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/actions/runs/45692373972) | 278 local tests passed; that exact CI run succeeded. Recheck after final edits. |
+| Freeze before training | `review/v3_r1_revision_manifest.json`, commit `51127bdfb65a19adb763501d139515dd4479ff27`, activation `1fe1f8a0e10813cb421608831938221135cba735` | FROZEN_ACTIVE; 100 messages, 335 labelled key facts, 40 incomplete requests. Notebook preflight passed on Mac and Colab. |
+| Leakage prevention | `review/v3_r1_preparation_summary.json`, `scripts/audit_r1.py`, full private processing report | 8,613 training and 957 validation rows, matching across Mac and Colab. No residual Golden text or distinctive-fact matches under documented thresholds. |
+| Training and three-system comparison | Instrumented notebook, distinct timestamped R1 run directory; `scripts/export_r1.py`, `src/evaluate.py` | Actual LoRA optimizer steps observed on Tesla T4. Completion, saved adapter reload, matched Q8_0 export and R1 comparison must be established by final artifacts. |
+| Human review and safety | `scripts/summarize_r1.py`, `scripts/merge_r1_judgments.py`, `docs/BLIND_RATING_GUIDE_V3_R1.md`, travel safety fixtures | Tools and 12 travel safety inputs prepared. Actual R1 safety outputs and two independent human judgments are not yet established. |
+| Report and presentation | `scripts/build_r1_report.py`, `scripts/reproduce_r1_tables.py`, execution documentation and private bundle | Report and deck are in preparation. Final numeric tables must be rebuilt from actual saved predictions in a clean extraction. |
 
-**Required sequencing:** Upload and commit the approved Golden Test first. Verify the commit SHA and make sure training begins later. Then run corpus preparation and overlap checks, actual LoRA fine-tuning, real-model evaluation, local demonstration, and results publication.
+## Scope and safeguards
+
+- One narrow task, one selected base model: Qwen3-1.7B, within the 4B limit.
+- The workflow checks missing details, rewrites, compares supported facts, attempts one repair, then releases or withholds.
+- The missing-information rule checker was measured separately on frozen R1: asked on 33/40 incomplete messages, exactly labelled details on 32/40, and needless questions on 1/60 complete messages. This meets historical T4 at its lower exact-request threshold. The unchanged targets are in `review/v3_r1_targets.json`.
+- The new model's local Ollama and Streamlit demonstration is pending. The available local device is an Apple M5 Mac with 16 GB memory; no Windows demonstration is claimed.
+- Team approval and the distinction between the original 11 checker disagreements and the 11 fact-label edits remain as recorded in the existing release evidence. This execution does not request or invent new signatures.
+- Corpus licensing is unresolved. Public publication is limited to cleaned code and aggregate evidence; detailed predictions, rating sheets and new derived weights stay private.
