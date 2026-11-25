@@ -1,0 +1,8 @@
+Candidate SHA-256: e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6
+Rows: 100
+Original checker disagreement IDs: ['t015', 't025', 't033', 't042', 't045', 't052', 't063', 't064', 't069', 't083', 't097']
+R1 changed key-fact IDs: ['t008', 't015', 't037', 't055', 't056', 't064', 't076', 't081', 't083', 't087', 't097']
+Common IDs: ['t015', 't064', 't083', 't097']
+Only original: ['t025', 't033', 't042', 't045', 't052', 't063', 't069']
+Only R1: ['t008', 't037', 't055', 't056', 't076', 't081', 't087']
+Counts: 322 to 335. Original list measures rule output versus missing labels; R1 edits only key_facts. Matching IDs do not imply equivalent corrections. No benchmark edits made.

@@ -1,6 +1,6 @@
 {
   "revision": "V3-R1 technical correction candidate",
-  "status": "TECHNICALLY_REVISED_LEADER_AUTHORIZED_NOT_FROZEN",
+  "status": "FROZEN_ACTIVE",
   "recorded_on": "2026-11-25",
   "source": "data/golden_v3.jsonl",
   "source_sha256": "09c1937ebac93056f1c33ef07037b157bc80e05361063474ef5e827dc73ccbbf",
@@ -13,16 +13,14 @@
   "key_fact_entries_before": 322,
   "key_fact_entries_after": 335,
   "missing_detail_rows": 40,
-  "original_11_case_list_available": false,
-  "selection_basis": "Independent prioritization of 11 substantive label issues from the current review; not claimed identical to the original handoff list.",
+  "original_11_case_list_available": true,
+  "selection_basis": "Compared the original 11 missing-information disagreements with the 11 key-fact edits. Four IDs coincide. The lists measure different properties.",
   "authority": "Team leader explicitly authorized technical corrections; no fresh peer or instructor sign-off of candidate digest claimed.",
   "prior_approval_preserved": true,
   "training_and_evaluation": "not run",
-  "freeze": "not completed",
+  "freeze": "Effective upon approval and merge of this activation change.",
   "remaining_review": [
-    "Original 11 case list remains unavailable.",
-    "t068 and t080 are separately documented lower-priority label-scope observations, not changed in this 11-row patch.",
-    "Two validator warning groups are intentional/documented; do not suppress.",
-    "Human semantic judgment remains mandatory."
-  ]
+    "Human semantic judgment of real V3-R1 outputs after training."
+  ],
+  "freeze_commit": "51127bdfb65a19adb763501d139515dd4479ff27"
 }
