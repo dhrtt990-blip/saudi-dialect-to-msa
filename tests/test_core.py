@@ -1,13 +1,16 @@
 """Fact checker, dialect word list, output clean-up and pipeline."""
 import pytest
 
-from src.facts import compare_facts, extract_facts
+from src.facts import checker_reads, compare_facts, extract_facts, fact_present
+from src.gazetteer import find_days, find_destinations, find_months, find_places, says_when
 from src.lexicon import find_dialect_words, rule_based_rewrite
+from src.needs import find_missing, has_reference, questions, request_kinds
 from src.pipeline import (
-    STATUS_EMPTY, STATUS_FACT_MISMATCH, STATUS_MODEL_FAILURE, STATUS_OK, STATUS_REPAIRED, STATUS_SUSPECT, STATUS_TOO_LONG,
+    STATUS_EMPTY, STATUS_FACT_MISMATCH, STATUS_MODEL_FAILURE, STATUS_NEEDS_INFO, STATUS_OK, STATUS_REPAIRED, STATUS_SUSPECT, STATUS_TOO_LONG,
     LLMUnavailable, MockClient, RewritePipeline, ScriptedClient, build_client, clean_output, run_model, shape_problem,
 )
-from src.prompts import FEW_SHOT_EXAMPLES, SYSTEM_PROMPT, build_messages, build_repair_messages, build_training_example
+from src.prompts import (BASELINE_REQUEST, BASELINE_SYSTEM_PROMPT, FEW_SHOT_EXAMPLES, SYSTEM_PROMPT, build_messages,
+                         build_repair_messages, build_training_example)
 
 
 def kinds(text):
@@ -200,7 +203,11 @@ def test_messages_and_training_example():
     plain = build_messages("نص")
     assert [m["role"] for m in plain] == ["system", "user"] and plain[0]["content"] == SYSTEM_PROMPT
     shots = build_messages("نص", few_shot=True)
-    assert len(shots) == 2 + 2 * len(FEW_SHOT_EXAMPLES) and shots[-1]["content"] == "نص"
+    worked = [(source, target) for source, target in FEW_SHOT_EXAMPLES if source != target]
+    assert len(shots) == 2 + 2 * len(worked) and shots[0] == {"role": "system", "content": BASELINE_SYSTEM_PROMPT}
+    assert shots[-1]["content"] == BASELINE_REQUEST + "نص"
+    assert [m["content"] for m in shots[1:-1:2]] == [BASELINE_REQUEST + source for source, _ in worked]
+    assert [m["content"] for m in shots[2:-1:2]] == [target for _, target in worked]
     row = build_training_example("ابغى", "أريد")
     assert [m["role"] for m in row["messages"]] == ["system", "user", "assistant"]
 
@@ -217,9 +224,10 @@ def test_repair_messages_name_the_facts():
 
 
 # --------------------------------- pipeline -------------------------------- #
-SRC = "ابغى اغير موعدي من يوم 12/4 لين يوم 19/4 الساعة 10:30"
-GOOD = "أريد تغيير موعدي من يوم 12/4 إلى يوم 19/4 الساعة 10:30."
-BAD = "أريد تغيير موعدي من يوم 12/4 إلى يوم 18/4 الساعة 10:30."
+# A complete request: it names its booking, so the missing-information check lets it through to the model.
+SRC = "ابغى اغير حجزي رقم 58120 من يوم 12/4 لين يوم 19/4 الساعة 10:30"
+GOOD = "أريد تغيير حجزي رقم 58120 من يوم 12/4 إلى يوم 19/4 الساعة 10:30."
+BAD = "أريد تغيير حجزي رقم 58120 من يوم 12/4 إلى يوم 18/4 الساعة 10:30."
 
 
 def test_released_when_facts_match():
@@ -307,7 +315,7 @@ def test_few_shot_client_gets_examples_in_repair_too():
     client = ScriptedClient([BAD, GOOD])
     client.few_shot = True
     RewritePipeline(client).run(SRC)
-    assert len(client.calls[0]) == 2 + 2 * len(FEW_SHOT_EXAMPLES)
+    assert len(client.calls[0]) == 2 + 2 * sum(source != target for source, target in FEW_SHOT_EXAMPLES)
     assert len(client.calls[1]) == len(client.calls[0]) + 2
 
 
@@ -334,3 +342,154 @@ def test_released_text_always_passes_the_fact_check():
             else:
                 assert r.text == m
     assert {STATUS_OK, STATUS_REPAIRED, STATUS_FACT_MISMATCH} <= seen
+
+
+# ------------------------- days, months and places -------------------------- #
+@pytest.mark.parametrize("text,days,places", [
+    ("رحلتي من الرياض لجده بعد بكره وارجع الثلوث", ["بعد غد", "الثلاثاء"], ["الرياض", "جدة"]),
+    ("رحلتي من الرياض إلى جدة بعد غدٍ وأعود الثلاثاء", ["بعد غد", "الثلاثاء"], ["الرياض", "جدة"]),
+    ("ابي قطار للمدينة بكرة وللطايف الربوع", ["غداً", "الأربعاء"], ["المدينة المنورة", "الطائف"]),
+    ("ما احد رد علي من امس والغدا ما وصل", ["أمس"], []),                    # "الغدا" is lunch, not tomorrow
+    ("على بالي اسافر بعد المغرب", [], []),                                  # sunset and "my mind", not Morocco and Bali
+    ("اتصلت بكم بالأمس وأول من أمس من ابو ظبي", ["أمس", "أول أمس"], ["أبوظبي"]),
+    ("ابي اسافر هالخميس وارجع بهالاسبوع", ["الخميس"], []),                  # "هالخميس" is "هذا الخميس"
+    ("ابي اروح عالرياض بعد غداً", ["بعد غد"], ["الرياض"]),                   # "عالرياض" is "على الرياض"
+    ("الباقة فيها فطور وغدا وعشا في جدة", [], ["جدة"]),                      # next to a meal, "غدا" is lunch
+    ("اسافر غدا من جدة", ["غداً"], ["جدة"]),
+])
+def test_days_and_places_are_read_in_their_formal_spelling(text, days, places):
+    assert find_days(text) == days and find_places(text) == places
+
+
+def test_origin_is_not_a_destination_and_months_and_periods_say_when():
+    assert find_destinations("ابغى اسافر من الرياض لدبي") == ["دبي"] and find_destinations("ابغى تذكرة من جدة") == []
+    assert find_months("يوم 5 مارس او في رمضان") == ["مارس", "رمضان"]
+    assert says_when("نسافر الاسبوع الجاي") and says_when("في شوال") and not says_when("ابغى احجز تذكرة")
+    assert not says_when("تسافر الوالدة بدون محرم") and find_months("الرصيد صفر") == []      # not the months
+
+
+def test_checker_reads_days_months_and_places():
+    kept = compare_facts("ابي احجز لدبي بكره الساعة 4:30", "أريد الحجز إلى دبي غداً الساعة 4:30.")
+    assert kept.ok and kept.source_facts == 3
+    changed = compare_facts("ابي احجز لدبي بكره", "أريد الحجز إلى أبوظبي بعد غد.")
+    assert changed.kind == "changed_fact"
+    assert {(f["kind"], f["canonical"]) for f in changed.missing} == {("day", "غداً"), ("place", "دبي")}
+    assert {(f["kind"], f["canonical"]) for f in changed.added} == {("day", "بعد غد"), ("place", "أبوظبي")}
+    # A date or a place the message does not have is an added fact: the model guessed.
+    guessed = compare_facts("ابغى احجز تذكرة", "أريد حجز تذكرة إلى جدة يوم الخميس 5 مارس.")
+    assert guessed.kind == "added_fact" and {f["kind"] for f in guessed.added} == {"number", "day", "month", "place"}
+    # Presence, not count: naming the city twice and then once is not a difference. Numbers are still counted.
+    assert compare_facts("من الرياض وارجع الرياض", "من الرياض مع العودة إليها.").ok
+    # "هالمدينة" and "هذه المدينة" are the same word to the checker (found on real corpus pairs).
+    assert compare_facts("وش أفضل أماكن التصوير في هالمدينة؟", "ما هي أفضل أماكن التصوير في هذه المدينة؟").ok
+    assert not compare_facts("الرحلة 2 والبوابة 2", "الرحلة 2 والبوابة.").ok
+
+
+@pytest.mark.parametrize("label,text,found,read", [
+    ("الخميس", "يوم الخميس القادم", True, True),
+    ("450", "دفعت ٤٥٠ ريالاً", True, True),
+    ("5 مارس", "يوم 5 مايو", False, True),
+    ("QX7T2M", "رقم الحجز QX7T2M", True, True),
+    ("بعد غد", "أسافر بعد غدٍ", True, True),
+    ("تذكرتان | تذكرتين", "أريد تذكرتين", True, False),        # either wording counts
+    ("درجة الأعمال", "على درجة الأعمال", True, False),
+    ("درجة الأعمال", "على الدرجة السياحية", False, False),
+    ("سائق", "أريد سائقاً يستقبلنا", True, False),
+    ("غداً", "موعدي بكره الصبح", True, True),                   # the same day in the customer's word
+    # In a label that holds a number only the number is matched, so a swapped package is for the raters to catch.
+    ("الذهبية بـ 6400", "الباقة الذهبية بمبلغ 6400 ريال", True, True),
+    ("الذهبية بـ 6400", "الباقة الفضية بمبلغ 6400 ريال", True, True),
+])
+def test_key_fact_first_look(label, text, found, read):
+    assert fact_present(text, label) is found and checker_reads(label) is read
+
+
+def test_a_listed_name_is_a_fact_the_checker_reads():
+    assert checker_reads("نورة", ["نورة"]) and not checker_reads("نورة")
+
+
+# -------------------------- missing information ----------------------------- #
+@pytest.mark.parametrize("text,missing", [
+    ("ابي احجز تذكرة لدبي يوم الخميس", []),
+    ("ابغى احجز تذكرة", ["date", "destination"]),
+    ("ابغى احجز لجدة", ["date"]),
+    ("احجزولي رحلة بكره الصبح", ["destination"]),
+    ("ابغى احجز تذكرة من الرياض يوم الجمعة", ["destination"]),       # where from is not where to
+    ("ابي تذكرتين للقاهرة", ["date"]),                               # a wish and the thing to book, without the verb
+    ("نبي فندق لـ 4 اشخاص", ["date", "destination"]),                # a hotel and travel insurance are things to book too
+    ("نبي تأمين سفر ل 5 اشخاص لمدة 10 ايام في ماليزيا", ["date"]),
+    ("الفندق يطلب مني 200 ريال تأمين", []),                          # no wish: a deposit the hotel asks for
+    ("وش افضل فندق في دبي؟", []),
+    ("ابي احجز لدبي شهر 7", []),                                     # a month given as a number says when
+    ("ابي الغي حجزي", ["booking_reference"]),
+    ("ابغى الغي الحجز رقم 5512", []),
+    ("ودي اغير تاريخ الرجعة من 28/12 لـ 2/1", ["booking_reference"]),
+    ("متى ترجعون فلوسي؟", ["booking_reference"]),
+    ("ابي استرجع 12000 ريال", ["booking_reference"]),                # an amount is not a booking number
+    ("ابي استرجع قيمة التذكرة، الحجز QX7T2M", []),
+    ("بالغي الرحلة واحجز غيرها لدبي يوم 5 الشهر", ["booking_reference"]),   # cancel first, then book: the old booking needs its number
+    ("اروح الخميس وارجع الاحد", []),                                 # coming back is not a refund
+    ("ابي ارجع التذكرة", ["booking_reference"]),                     # handing the ticket back is
+    ("ابي الغاء التذكرة", ["booking_reference"]),                    # the noun of the act, without its verb
+    ("وش صار على حجزي؟", ["booking_reference"]),                     # "my booking", without any act
+    ("متى ترجعون من الاجازة؟", []),                                  # "ترجعون" without a word for money is not a refund
+    ("ابي امدد اقامتي في الفندق ليلتين", ["booking_reference"]),
+    ("السعر الغالي هذا غير معقول", []),
+    ("كم سعر التذكرة من الرياض لأبها يوم الخميس؟", []),              # a question about prices books nothing
+    ("ابي اعرف سعر تذكرة لدبي", []),                                 # nor does wanting to know one
+    ("غيروا الموظف اللي يرد", []),
+    # A request to book that also asks about cancelling or changing is still a new booking.
+    ("ابي احجز فندق في دبي من 5/3 لين 9/3 واذا فيه الغاء مجاني يكون افضل", []),
+    ("ابي احجز لدبي يوم 5/3، هل اقدر اغير التاريخ بعدين؟", []),
+    ("ابي احجز لدبي يوم 5/3، وش شروط الاسترداد؟", []),
+    ("ابي احجز تذكرة لجدة يوم 5/3 وارجع بعدها باسبوع، كم المبلغ بالريال؟", []),
+    ("ابي احجز فندق في دبي لرحلتي يوم 5/3", []),
+    # ... unless the act is on something the customer calls his own: that booking exists and needs its number.
+    ("ابي احجز لدبي بكره وابي الغي حجزي القديم", ["booking_reference"]),
+    ("احجزوا لي دبي بكره وكنسلوا تذكرتي لجدة", ["booking_reference"]),
+    ("ابي احجز لدبي بكره ورجعوا لي فلوس حجزي السابق", ["booking_reference"]),
+    # A wish to travel is a request to book; where the customer lives is not where he is going; a length of time is not a date.
+    ("ودنا نسافر لدبي بس ما حددنا متى", ["date"]),
+    ("انا ساكن بالرياض وابي احجز رحلة الخميس", ["destination"]),
+    ("ابي احجز فندق لمدة 2 شهر في جدة", ["date"]),
+    # What looks like a number but is not the booking's: an e-mail address, an amount, a phone, an identity or a flight number.
+    ("ابي الغي حجزي، ايميلي ahmed99@example.com", ["booking_reference"]),
+    ("ابي الغي حجزي، المبلغ 15000.", ["booking_reference"]),
+    ("ابي الغي حجزي ب 12000", ["booking_reference"]),
+    ("ابي الغي حجزي، جوالي 1234567", ["booking_reference"]),          # a placeholder, not a real number format
+    ("ابي الغي رحلتي، رقم الرحلة ZZ1022", ["booking_reference"]),
+])
+def test_missing_information_rules(text, missing):
+    assert find_missing(text) == missing
+
+
+def test_booking_reference_forms():
+    for text in ("حجزي رقم 5512", "رقم الحجز 771", "الحجز QX7T2M", "كود الحجز ABCDEF", "رقمها 70385،", "حجز الفندق رقم 39502",
+                 "حجزي 20763 على درجة سياحية", "للحجز 62215 باسم الشركة", "QX7T2M"):
+        assert has_reference(text), text
+    for text in ("دفعت 12000 ريال", "رحلتي رقم 1043", "يوم 20/12/2026", "الحجز من 20/12/2026", "الساعة 11:40", "معي 3 شنط",
+                 "رقم البلاغ K7M2QX", "حجزت 120 ليلة", "دفعت 2,350 ريال", "ميزانيتنا 15000"):
+        assert not has_reference(text), text
+
+
+def test_attached_particles_do_not_hide_the_request():
+    # "و" and "ف" in front of any word, and the dialect "ب" and "ح" in front of a verb.
+    assert request_kinds("السلام عليكم وابغى احجز تذكرة")[0] is not None
+    assert request_kinds("بنحجز رحلة لدبي")[0] == 0 and request_kinds("حنحجز رحلة لدبي")[0] == 0
+    assert request_kinds("بنلغي الحجز")[1] and request_kinds("فالغوا الحجز")[1] and not request_kinds("وين الحجز")[1]
+    assert find_missing("وبنحجز لجدة") == ["date"]
+
+
+def test_missing_detail_is_asked_for_and_the_model_is_not_called():
+    client = ScriptedClient(["أريد حجز تذكرة إلى جدة يوم الخميس."])
+    r = RewritePipeline(client).run("ابغى احجز تذكرة")
+    assert r.status == STATUS_NEEDS_INFO and not r.released and r.text == "ابغى احجز تذكرة" and client.calls == []
+    assert r.missing_info == ["date", "destination"] and r.questions_ar == questions(["date", "destination"]) and len(r.questions_ar) == 2
+
+
+def test_going_on_without_the_detail_still_refuses_a_guess():
+    guess, faithful = "أريد حجز تذكرة إلى جدة يوم الخميس.", "أريد حجز تذكرة."
+    r = RewritePipeline(ScriptedClient([guess, guess])).run("ابغى احجز تذكرة", ask=False)
+    assert r.status == STATUS_FACT_MISMATCH and {f["kind"] for f in r.check["added"]} == {"day", "place"}
+    assert RewritePipeline(ScriptedClient([faithful]), ask=False).run("ابغى احجز تذكرة").status == STATUS_OK
+    assert RewritePipeline(ScriptedClient([faithful])).run("ابغى احجز تذكرة", ask=False).released
