@@ -138,7 +138,7 @@ def build(root: Path, out: Path) -> None:
         ['Training and final save elapsed seconds', round(provenance['elapsed_seconds'], 1)],
         ['Peak allocated GPU GiB', round(provenance['peak_gpu_bytes'] / 1024**3, 2)],
     ])
-    para('Loss was restricted to assistant tokens. The run saved checkpoints, configuration, library versions, loss history and the final adapter in a distinct directory. An initial attempt stopped before training because Colab’s optional torchao 0.10.0 conflicted with PEFT. Removing that unused optional package allowed float16 LoRA training to proceed. The failed attempt remains in the evidence bundle.')
+    para('Loss was restricted to assistant tokens. The run saved checkpoints, configuration, library versions, loss history and the final adapter in a distinct directory. An initial attempt stopped before training because Colab’s optional torchao 0.10.0 conflicted with PEFT. Removing that unused optional package allowed float16 LoRA training to proceed. The initialization failure is documented separately from the completed run.')
     para('Recorded software: Python ' + provenance['python'] + '; ' + '; '.join(f"{name} {provenance['versions'][name]}" for name in ('torch', 'transformers', 'peft', 'trl')) + '. Loaded-module and installed-package versions are recorded separately in the provenance file after the environment repair.')
     para('The saved adapter was reloaded into the pinned base model and generated five nonempty validation rewrites. This verifies restoration and inference, not benchmark quality. The untuned and merged models were exported with the same converter revision and Q8_0 setting for the comparison.')
     para('Adapter SHA-256: ' + export['adapter_sha256'])
@@ -218,6 +218,11 @@ def build(root: Path, out: Path) -> None:
     para(f"The browser demonstration ran on {demo['device']} with {demo['os']} and Ollama {demo['ollama_version']}. Windows was not tested in this execution.")
     for case in demo['cases']:
         para(case['label'] + ': ' + case['status'] + '. ' + case['observed_result'])
+        arabic(case['source'])
+        if case.get('output'):
+            arabic(case['output'])
+        for question in case.get('questions', []):
+            arabic(question)
     para('The rule checker misses some complaints and follow-ups and can confuse a listed place or day with another meaning of the same word. Numbers expressed as words and relationships between otherwise preserved facts need semantic review. Corpus sentences are shorter and more general than many booking requests. The evaluation has only 100 AI-assisted, team-reviewed messages and does not establish performance on real customer traffic.')
     para('Corpus licence statements remain inconsistent. New weights, detailed predictions and rating sheets are retained in the private team bundle; public code and aggregate results do not imply permission to publish derived weights. Historical V2.2 evidence remains separate.')
     heading('Reproduction and evidence')

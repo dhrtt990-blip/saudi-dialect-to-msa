@@ -33,3 +33,19 @@ The final adapter digest is `2ace6f366dfc35192385ade92d2548e57250ae6c419d07d4039
 Compatibility repairs are recorded, not hidden: unused torchao was removed; pyarrow 26.0.1 remained loaded after 23.0.1 was installed; Transformers 5 lacks the former config `_commit_hash` attribute, so the actual base revision was resolved from the sole local Hugging Face snapshot. Standard venv failed in Colab; virtualenv created the separate converter environment. Transformers 4.57.6 could not read the tokenizer format written by 5.23.0; conversion succeeded with 5.23.0. No failed attempt contributes a released model artifact.
 
 The public training aggregate is `review/v3_r1_training_summary.json`. The maintained primary notebook preserves the preflight and incorporates observed repairs; the exact historical executed cell source, differing runtime overlays and checksums are retained separately. A public notebook edit does not retrospectively change the recorded training source commit.
+
+## Actual R1 comparison and local demonstration
+
+The models were imported locally from the verified matched GGUF files and passed all four exact prompt-template checks each. Evaluation executed from clean commit `229141e9d4fd7bbcca9fdaa369adeea067535e45` with temperature 0, inference seed 0, 512 maximum new tokens and thinking off. All three prediction files contain the same 100 frozen IDs. The saved prediction digests and a separate execution receipt bind the outputs to this source and the actual Ollama model digests.
+
+| System | Released | Automatic passes | Repairs attempted | Released after repair | Withheld |
+|---|---|---|---|---|---|
+| Fixed prompted baseline | 100/100 | 82/100 | 0 | 0 | 0/100 |
+| LoRA alone | 100/100 | 88/100 | 0 | 0 | 0/100 |
+| Full pipeline | 90/100 | 89/100 | 11 | 1 | 10/100 |
+
+Baseline-to-tuned automatic transitions: 11 failures became passes and five passes became failures. Tuned-to-full: one failure became a pass and no pass became a failure. These are not human semantic-correctness transitions. The full system has zero automatically detected fact errors among 90 released messages, but actual released outputs can change intent; the private analysis documents examples. The zero is not a human false-release count.
+
+The 12-case travel safety run produced 10 RELEASED_CHECKED, one ASKED and one BLOCKED. Released checks do not establish semantic safety. Two separate blind sheets contain 206 distinct actual rewrites, including withheld candidates. All human rating fields remain blank; there is no invented agreement or human T1–T3 result. T4 is met, and T3's numeric withholding limit alone is met.
+
+The actual Chrome/Streamlit demonstration used the R1 tuned model on a MacBook Pro Apple M5, 16 GB, macOS 27.2.1 build 26B131, Ollama 0.40.18. The complete request preserved Jeddah, 19/4 and 10:30; the incomplete request produced date and destination questions without a rewrite. Windows was not tested. Detailed inputs and outputs remain in the private team bundle.

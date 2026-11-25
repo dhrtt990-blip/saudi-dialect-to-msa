@@ -695,6 +695,8 @@ def render_markdown(meta: dict, scores: dict[str, dict], transitions: list[dict]
                     "key_fact_lost": r["facts_judged"]}.get(err, r["judged"])   # rewrites judged for this kind of error
             if err == "key_fact_lost" and not labelled:
                 cells.append("not labelled")   # a golden test without key facts: 0 would read as "checked, none lost"
+            elif err == "key_fact_lost" and not r["key_facts"]["judged"]:
+                cells.append("not judged")  # Empty fact lists are not human ratings.
             elif err not in HUMAN_ERRORS or done == r["released"]:
                 cells.append(str(r["error_counts"][err]))
             elif done:
