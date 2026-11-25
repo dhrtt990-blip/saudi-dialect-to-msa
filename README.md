@@ -1,5 +1,9 @@
 # Saudi Dialect to Modern Standard Arabic (MSA) Rewriter
 
+## 🚧 CURRENT TEAM WORK — Travel agency V3-R1
+
+**Do not start new training or evaluation with V2.2.** The current travel benchmark candidate is [data/golden_v3_r1_candidate.jsonl](data/golden_v3_r1_candidate.jsonl), SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. It is technically revised but **not frozen/active**. PR [#3](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/pull/3) is the handoff; main remains historical until merge. Use [the V3-R1 start instructions](docs/START_TRAVEL_V3_R1.md). The training notebook blocks until the active freeze record is committed. `data/golden_test.jsonl` is V2.2, historical only; `data/golden_v3.jsonl` is the prior approved V3 snapshot, not the revised candidate. Never mix their predictions or results. Preserve the historical files and hashes.
+
 **KAUST Academy — NLP Applications (2026)**  
 **Project:** Saudi Dialect to Modern Standard Arabic Rewriting with a Fact-Preservation Check
 
