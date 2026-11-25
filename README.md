@@ -1,5 +1,9 @@
 # Saudi Dialect to Modern Standard Arabic (MSA) Rewriter
 
+## 🚧 CURRENT TEAM WORK — Travel agency V3-R1
+
+**Do not start new training or evaluation with V2.2.** The current travel benchmark candidate is [data/golden_v3_r1_candidate.jsonl](data/golden_v3_r1_candidate.jsonl), SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. It is technically revised but **not frozen/active**. PR [#3](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/pull/3) is the handoff; main remains historical until merge. Use [the V3-R1 start instructions](docs/START_TRAVEL_V3_R1.md). The training notebook blocks until the active freeze record is committed. `data/golden_test.jsonl` is V2.2, historical only; `data/golden_v3.jsonl` is the prior approved V3 snapshot, not the revised candidate. Never mix their predictions or results. Preserve the historical files and hashes.
+
 **KAUST Academy — NLP Applications (2026)**  
 **Project:** Saudi Dialect to Modern Standard Arabic Rewriting with a Fact-Preservation Check
 
@@ -37,3 +41,7 @@ This initial GitHub release establishes traceability for the team-approved evalu
 ## Course submission
 
 The team's deadline is **21 November 2026**. A public repository does not itself prove submission to Blackboard.
+
+## Current status — 25 November 2026
+
+The historical V2.2 evaluation has recorded automatic pass counts (71 baseline, 85 tuned, 85 full pipeline out of 100) in [results/public_summary.json](results/public_summary.json). These are not human semantic accuracy. The travel-agency V3 benchmark was separately team-reviewed on 25 November; see [V3 approval](docs/GOLDEN_V3_TEAM_APPROVAL.md) and [manifest](GOLDEN_V3_RELEASE_MANIFEST.json). V2.2 remains frozen and is not replaced. V3 training, evaluation, human output judgments and licensing remain separate. On 25 November 2026, the team leader reported that the supervising instructor had reviewed the complete presented results and approved the project. This is a leader-reported approval, not a directly supplied instructor record. It does not establish approval of a specific V3 file hash or results of experiments not yet performed. Earlier text in this README describing planned work reflects the pre-training snapshot.

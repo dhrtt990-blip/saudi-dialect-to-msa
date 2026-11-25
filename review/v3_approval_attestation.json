@@ -1,0 +1,48 @@
+{
+  "release": "v3",
+  "recorded_on": "2026-11-25",
+  "attested_by": "Abdulrahman Mastour Alharthi",
+  "basis": "The team leader confirms all four team members personally approved their assigned 25 messages and reviewed 25 assigned to their reciprocal peer, in person under his direct supervision, using the uploaded workbook. Names were transcribed administratively from this attestation; no independent digital signatures were collected.",
+  "source_workbook_sha256": "ce9b192385e871ca360359e62058c335c87270763785dda467d5cce4cc4b53f4",
+  "canonical_review_content_sha256": "38b6e7c95ff3c5f629d65190531239a1aee0655aaf7f53607ec74628d58ca662",
+  "golden_sha256": "09c1937ebac93056f1c33ef07037b157bc80e05361063474ef5e827dc73ccbbf",
+  "owner_approvals": 100,
+  "peer_reviews": 100,
+  "review_matrix": [
+    {
+      "ids": "t001–t025",
+      "owner": "Abdulrahman Mastour Alharthi",
+      "peer": "Yasser Mansour Alhajlah",
+      "count": 25
+    },
+    {
+      "ids": "t026–t050",
+      "owner": "Yasser Mansour Alhajlah",
+      "peer": "Abdulrahman Mastour Alharthi",
+      "count": 25
+    },
+    {
+      "ids": "t051–t075",
+      "owner": "Mohammed Adeeb Alrashdi",
+      "peer": "Musaad Obaied Saad Alqahtani",
+      "count": 25
+    },
+    {
+      "ids": "t076–t100",
+      "owner": "Musaad Obaied Saad Alqahtani",
+      "peer": "Mohammed Adeeb Alrashdi",
+      "count": 25
+    }
+  ],
+  "digital_signatures_collected": false,
+  "ai_assisted_source": true,
+  "model_output_judgments": false,
+  "instructor_approval": {
+    "status": "PROJECT_AND_PRESENTED_RESULTS_APPROVED_AS_REPORTED_BY_TEAM_LEADER",
+    "recorded_on": "2026-11-25",
+    "reported_by": "Abdulrahman Mastour Alharthi",
+    "statement": "The team leader reports that the supervising instructor reviewed the complete presented results and approved the project.",
+    "direct_instructor_record_available": false,
+    "scope_note": "Project and presented results approval is reported; separate explicit approval of the exact V3 dataset hash or unperformed V3 model experiments is not asserted."
+  }
+}
