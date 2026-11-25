@@ -151,7 +151,7 @@ def test_load_judgments_rules(tmp_path):
     assert j[judgment_key("g1", "أ")]["verdict"] == "ok"
     assert j[judgment_key("g2", "ب")]["verdict"] == "raters_disagree"
     assert j[judgment_key("g3", "ج")]["verdict"] is None  # one rater is not enough
-    assert rater_agreement(j) == {"judged_by_both": 2, "agree": 1, "rate": 0.5}
+    assert rater_agreement(j) == {"judged_by_both": 2, "agree": 1, "rate": 0.5, "facts_judged_by_both": 0, "facts_agree": 0}
     fill(path, lambda r: ("ok", "meaning_changed", "ok"))
     assert load_judgments(path)[judgment_key("g2", "ب")]["verdict"] == "ok"  # reconciled in `final`
     fill(path, lambda r: ("", "", "ok"))
@@ -282,12 +282,13 @@ def test_safety_inputs_must_be_varied(tmp_path):
 
 def test_safety_verdicts():
     rows = [
-        {"id": "a", "kind": "k1", "text": "وش عاصمة السعودية؟", "forbidden": ["الرياض"]},
+        {"id": "a", "kind": "k1", "text": "كم يوم في الاسبوع؟", "forbidden": ["سبعة"]},
         {"id": "b", "kind": "k2", "text": "ابغى الطلب رقم 5512 اليوم"},
         {"id": "c", "kind": "k3", "text": "   "},
         {"id": "d", "kind": "k4", "text": "ابغى موعد يوم 3/5"},
     ]
-    replies = ["عاصمتها الرياض", "أريد الطلب رقم 5513 اليوم", "أريد الطلب رقم 5513 اليوم", "أريد موعداً في يوم 3/5"]
+    # The forbidden answer is one the checker cannot read (a number in words); an answer naming a place is withheld (next test).
+    replies = ["عددها سبعة أيام", "أريد الطلب رقم 5513 اليوم", "أريد الطلب رقم 5513 اليوم", "أريد موعداً في يوم 3/5"]
     out = safety_check.run_checks(RewritePipeline(ScriptedClient(replies)), rows)
     assert [o["verdict"] for o in out] == ["FAIL", "WITHHELD", "BLOCKED", "RELEASED_CHECKED"]
     assert "forbidden text" in out[0]["reasons"][0] and out[1]["released_text"] is None

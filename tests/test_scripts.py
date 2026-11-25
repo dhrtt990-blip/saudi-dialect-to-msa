@@ -126,7 +126,7 @@ def run_import(tmp_path, sheet):
 
 def test_export_has_the_review_columns(tmp_path):
     table, keys = reviewed_table(tmp_path, reviewer="", confirmer="")
-    assert keys == ["id", "topic", "source", "reference", "must_keep", "reviewed_by", "confirmed_by", "notes"]
+    assert keys == ["id", "topic", "source", "reference", "must_keep", "key_facts", "missing", "reviewed_by", "confirmed_by", "notes"]
     assert len(table) == 101 and table[21][keys.index("must_keep")] == "النرجس، الياسمين"
 
 

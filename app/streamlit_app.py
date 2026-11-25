@@ -1,4 +1,7 @@
-"""Streamlit app: Saudi dialect -> formal MSA, with the fact check shown.
+"""Streamlit app: customer messages of a travel booking desk, Saudi dialect -> formal MSA.
+
+The app asks for a missing date, destination or booking reference instead of
+rewriting, and shows the fact check of every rewrite.
 
     streamlit run app/streamlit_app.py
 
@@ -24,6 +27,7 @@ from src.pipeline import (  # noqa: E402
     DEFAULT_BASE_MODEL,
     DEFAULT_HOST,
     DEFAULT_TUNED_MODEL,
+    STATUS_NEEDS_INFO,
     MockClient,
     OllamaClient,
     RewritePipeline,
@@ -47,7 +51,8 @@ code, pre { direction: ltr; text-align: left; }
 </style>
 """
 
-KIND_AR = {"number": "رقم", "date": "تاريخ", "time": "وقت", "email": "بريد إلكتروني", "url": "رابط", "latin": "كلمة لاتينية"}
+KIND_AR = {"number": "رقم", "date": "تاريخ", "time": "وقت", "email": "بريد إلكتروني", "url": "رابط", "latin": "كلمة لاتينية",
+           "day": "يوم", "month": "شهر", "place": "مكان"}
 
 
 def esc(text: str) -> str:
@@ -76,8 +81,13 @@ def facts_table(check: dict, source: str) -> str:
     for name in check.get("must_keep_missing", []):
         rows.append(f'<tr><td>{esc(name)}</td><td>اسم</td><td><span class="bad">غير موجود في إعادة الصياغة</span></td></tr>')
     if not rows:
-        return "<p>لا توجد في الرسالة أرقام أو تواريخ أو كلمات لاتينية للتحقق منها.</p>"
+        return "<p>لا توجد في الرسالة أرقام أو تواريخ أو أيام أو أماكن مدرجة أو كلمات لاتينية للتحقق منها.</p>"
     return '<table class="facts"><tr><th>العنصر</th><th>النوع</th><th>الحالة</th></tr>' + "".join(rows) + "</table>"
+
+
+def questions_list(questions: list[str]) -> str:
+    """The questions to put to the customer, as an escaped list."""
+    return "<ul>" + "".join(f"<li>{esc(q)}</li>" for q in questions) + "</ul>"
 
 
 def make_client(engine: str, model: str, host: str, few_shot: bool = False):
@@ -89,31 +99,48 @@ def make_client(engine: str, model: str, host: str, few_shot: bool = False):
 def main() -> None:
     st.set_page_config(page_title="من اللهجة إلى الفصحى", layout="wide")
     st.markdown(RTL_CSS, unsafe_allow_html=True)
-    st.title("تحويل اللهجة السعودية إلى الفصحى مع التحقق من التفاصيل")
+    st.title("مكتب حجوزات وكالة السفر: من رسالة العميل باللهجة إلى صياغة فصحى رسمية")
+    st.caption("النظام يسأل عن التاريخ أو الوجهة أو رقم الحجز إذا نقص ولا يخمّنه، ثم يقارن الأرقام والتواريخ والأيام والأماكن المدرجة بين الرسالة وصياغتها.")
 
     engine = os.environ.get("D2M_APP_ENGINE", "ollama")
     with st.sidebar:
         st.header("الإعدادات")
         host = st.text_input("عنوان Ollama", DEFAULT_HOST)
-        tuned = st.text_input("النموذج المضبوط", DEFAULT_TUNED_MODEL)
+        tuned = st.text_input("النموذج المدرَّب", DEFAULT_TUNED_MODEL)
         base = st.text_input("النموذج الأساسي", DEFAULT_BASE_MODEL)
         if engine == "mock":
             st.warning("وضع التجربة: المحرّك بديل قاعدي وليس نموذجاً. النتائج لا تدل على جودة النموذج.")
         else:
             ok, why = OllamaClient(tuned, host).is_available()
             if ok:
-                st.success("النموذج المضبوط متاح محلياً.")
+                st.success("النموذج المدرَّب متاح محلياً.")
             else:
                 st.error(f"النموذج غير متاح: {why}")
 
     tab_run, tab_compare = st.tabs(["إعادة الصياغة", "مقارنة قبل وبعد"])
 
     with tab_run:
-        text = st.text_area("الرسالة باللهجة", height=140, placeholder="ابغى اغير موعدي من يوم 12/4 لين يوم 19/4 الساعة 10:30")
+        text = st.text_area("رسالة العميل باللهجة", height=140, placeholder="ابغى احجز تذكرتين لجدة يوم 19/4 الساعة 10:30")
         names = st.text_input("أسماء يجب أن تبقى كما هي (اختياري، افصل بينها بفاصلة)")
+        go_on = st.checkbox("حوّل الرسالة كما هي حتى لو نقصها تفصيل لازم")
+        st.caption("عند التحويل دون سؤال يرفض الفاحص رقماً أو تاريخاً بالأرقام أو يوماً أو مكاناً مدرجاً أو رمزاً لم يرد في الرسالة، ولا يرى غير ذلك.")
+        skipped: list[str] = []
+        from src.needs import LABELS_AR, find_missing
         if st.button("حوّل", type="primary"):
             must_keep = [n.strip() for n in names.replace("،", ",").split(",") if n.strip()]
-            result = RewritePipeline(make_client(engine, tuned, host)).run(text, must_keep)
+            result = RewritePipeline(make_client(engine, tuned, host)).run(text, must_keep, ask=not go_on)
+            if go_on:
+                skipped = find_missing(text.strip())   # shown with the result, so a skipped question is never silent
+        else:
+            result = None
+        if result is not None and result.status == STATUS_NEEDS_INFO:
+            st.warning(f"{result.message_ar}  ({result.status})")
+            st.subheader("اسأل العميل")
+            st.markdown(questions_list(result.questions_ar), unsafe_allow_html=True)
+            st.info("أضف الجواب إلى نص الرسالة ثم اضغط «حوّل»، أو فعّل الخيار أعلاه لتحويلها كما هي.")
+        elif result is not None:
+            if skipped:
+                st.warning("حُوّلت الرسالة كما هي دون سؤال العميل، وينقصها: " + "، ".join(LABELS_AR[d] for d in skipped) + ".")
             left, right = st.columns(2)
             with right:
                 st.subheader("الرسالة الأصلية")
@@ -142,7 +169,7 @@ def main() -> None:
                 st.caption(f"عدد المحاولات: {result.attempts} · الزمن: {result.elapsed_ms} مللي ثانية")
 
     with tab_compare:
-        st.write("الرسالة نفسها عبر الأنظمة الثلاثة: النموذج الأساسي مع الموجّه الكامل، النموذج المضبوط وحده، والمضبوط داخل النظام.")
+        st.write("الرسالة نفسها عبر الأنظمة الثلاثة: النموذج الأساسي مع الموجّه الكامل، النموذج المدرَّب وحده، والمدرَّب داخل النظام.")
         text2 = st.text_area("الرسالة", height=120, key="cmp")
         if st.button("قارن"):
             base_client = MockClient("weak") if engine == "mock" else OllamaClient(base, host, few_shot=True)
@@ -152,8 +179,8 @@ def main() -> None:
             for client in (base_client, tuned_client):
                 r = run_model(client, build_messages(text2.strip(), few_shot=client.few_shot)) if text2.strip() else None
                 outputs.append((r.output if r and r.ok else "", (r.error if r else "لم يُدخل نص") or ""))
-            full = RewritePipeline(tuned_client).run(text2)
-            titles = ["النموذج الأساسي + موجّه", "النموذج المضبوط وحده", "المضبوط داخل النظام"]
+            full = RewritePipeline(tuned_client, ask=False).run(text2)  # the comparison is about the rewrite itself
+            titles = ["النموذج الأساسي + موجّه", "النموذج المدرَّب وحده", "المدرَّب داخل النظام"]
             for col, title, (out, err) in zip(columns[::-1], titles, outputs + [(full.text, "")], strict=True):
                 with col:
                     st.subheader(title)

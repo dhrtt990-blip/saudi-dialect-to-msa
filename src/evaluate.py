@@ -2,18 +2,27 @@
 
     python -m src.evaluate --golden data/golden_test.jsonl --out results
 
-  baseline  the untuned model with the full prompt and worked examples
+  baseline  the untuned model with its own prompt and worked examples
   tuned     the fine-tuned model alone
   full      the fine-tuned model inside the pipeline (checker, repair, withhold)
 
-A rewrite is CORRECT only if it passes three checks:
-  1. facts      every number, date, time, Latin word and listed name is kept (automatic)
+All three rewrite every golden message, so the comparison is like for like: the
+missing-information check is switched off for it and scored on its own.
+
+A rewrite is CORRECT only if it passes four checks:
+  1. facts      every number, date, time, Latin word, day, listed place and listed name is kept (automatic)
   2. dialect    no listed dialect word is left (automatic word list; a reviewer can overrule it)
   3. meaning    the meaning is kept and nothing is added (two team members, judging blind)
+  4. key facts  no key fact labelled in the golden test is lost or changed (the same two members)
+
+The report also says what the checks miss: the labelled key facts that are lost
+or changed in rewrites the pipeline released, the rewrites it withheld although
+nothing was wrong with them, and how the missing-information check did against
+the labels of the golden test.
 
 The first run writes `judgments_template.csv`. Two members fill it in without
 knowing which system wrote which line. A second run with `--judgments` adds
-check 3. Until then the report shows the automatic checks only and says so.
+checks 3 and 4. Until then the report shows the automatic checks only and says so.
 
 `--client mock` runs the same code with a rule-based stand-in and writes to
 `<out>/dryrun_mock`. Those numbers are not results.
@@ -25,6 +34,7 @@ import csv
 import hashlib
 import json
 import random
+import re
 import subprocess
 import sys
 from collections import Counter
@@ -32,8 +42,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .common import normalize_for_dedup, read_jsonl, sha256_file, strip_marks, write_jsonl
-from .facts import compare_facts
+from .facts import checker_reads, compare_facts, fact_present
 from .lexicon import find_dialect_words
+from .needs import DETAILS, find_missing
 from .pipeline import (
     DEFAULT_BASE_MODEL,
     DEFAULT_HOST,
@@ -56,7 +67,7 @@ SYSTEM_LABELS = {
 }
 VERDICTS = ("ok", "meaning_changed", "content_added", "dialect_left")
 AUTO_ERRORS = ("no_output", "withheld", "dropped_fact", "changed_fact", "added_fact", "name_lost", "dialect_left", "copied_input")
-HUMAN_ERRORS = ("meaning_changed", "content_added", "raters_disagree")
+HUMAN_ERRORS = ("meaning_changed", "content_added", "key_fact_lost", "raters_disagree")
 ERROR_TYPES = AUTO_ERRORS + HUMAN_ERRORS
 
 
@@ -120,15 +131,33 @@ def chrf(hypothesis: str, reference: str, max_n: int = 6, beta: float = 2.0) -> 
 # --------------------------------------------------------------------------- #
 # Blind judgments
 # --------------------------------------------------------------------------- #
-def judgment_key(example_id: str, output: str) -> str:
+def judgment_key(example_id: str, output: str, key_facts: list[str] | tuple[str, ...] | None = None) -> str:
     """Same id and exactly the same text (up to spacing) give the same key, so
     identical outputs of two systems are judged once and the judge cannot tell
-    the systems apart. Outputs that differ in any character get their own row."""
-    return hashlib.sha1(f"{example_id}\x00{' '.join(output.split())}".encode("utf-8")).hexdigest()[:12]
+    the systems apart. Outputs that differ in any character get their own row.
+
+    The labelled key facts are part of the key: the raters refer to them by number, so a sheet filled in
+    for one list of facts must not be read against another. The key starts with a letter so that a
+    spreadsheet never turns it into a number."""
+    parts = [example_id, " ".join(output.split()), *(key_facts or ())]
+    return "j" + hashlib.sha1("\x00".join(parts).encode("utf-8")).hexdigest()[:12]
 
 
 # The automatic flags are left out on purpose: they would hint at the system and prime the verdict.
-JUDGMENT_COLUMNS = ["key", "source", "reference", "output", "rater_a", "rater_b", "final", "auto_dialect_wrong"]
+JUDGMENT_COLUMNS = ["key", "source", "reference", "key_facts", "output", "rater_a", "rater_b", "final",
+                    "facts_lost_a", "facts_lost_b", "facts_lost_final", "auto_dialect_wrong"]
+# What a rater writes in a facts_lost cell when no key fact is lost.
+_NO_FACT_LOST = {"0", "none", "no", "-", "لا", "لا يوجد", "لايوجد", "صفر"}
+
+
+def texts_to_judge(pred: dict) -> list[str]:
+    """What the raters read for one prediction: the released rewrite, or the rewrite the pipeline
+    withheld. The withheld ones are judged too, so the report can say how often withholding was needed."""
+    if pred.get("released") and pred.get("output"):
+        return [pred["output"]]
+    if not pred.get("released") and pred.get("candidate"):
+        return [pred["candidate"]]
+    return []
 
 
 def write_judgment_template(path: Path, golden: list[dict], predictions: dict[str, dict[str, dict]], seed: int = 13) -> int:
@@ -136,16 +165,19 @@ def write_judgment_template(path: Path, golden: list[dict], predictions: dict[st
     rows: dict[str, dict] = {}
     for preds in predictions.values():
         for pid, pred in preds.items():
-            if not pred.get("released") or not pred.get("output"):
-                continue
-            key = judgment_key(pid, pred["output"])
-            if key in rows:
+            if pid not in by_id:  # saved predictions can hold more rows than a run limited with --limit
                 continue
             g = by_id[pid]
-            rows[key] = {
-                "key": key, "source": g["source"], "reference": g["reference"], "output": pred["output"],
-                "rater_a": "", "rater_b": "", "final": "", "auto_dialect_wrong": "",
-            }
+            for text in texts_to_judge(pred):
+                key = judgment_key(pid, text, g.get("key_facts"))
+                if key in rows:
+                    continue
+                rows[key] = {
+                    "key": key, "source": g["source"], "reference": g["reference"],
+                    "key_facts": "\n".join(f"{n}. {fact}" for n, fact in enumerate(g.get("key_facts") or [], 1)),
+                    "output": text, "rater_a": "", "rater_b": "", "final": "",
+                    "facts_lost_a": "", "facts_lost_b": "", "facts_lost_final": "", "auto_dialect_wrong": "",
+                }
     ordered = [rows[k] for k in sorted(rows)]
     random.Random(seed).shuffle(ordered)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -156,11 +188,35 @@ def write_judgment_template(path: Path, golden: list[dict], predictions: dict[st
     return len(ordered)
 
 
-def load_judgments(path: str | Path) -> dict[str, dict]:
-    """Read the filled-in judgment sheet. Raises ValueError on an unknown verdict."""
+def _fact_numbers(cell: str | None, where: str, limit: int | None) -> frozenset[int] | None:
+    """A facts_lost cell: None when empty (not judged), an empty set for "0" (nothing lost),
+    else the numbers of the lost or changed facts ("2", "1,3")."""
+    text = " ".join(strip_marks(cell or "").split()).lower()
+    if not text:
+        return None
+    if text in _NO_FACT_LOST:
+        return frozenset()
+    parts = [part for part in re.split(r"[\s,،;؛]+", text) if part]
+    if not all(part.isdigit() for part in parts) or any(int(part) < 1 or (limit is not None and int(part) > limit) for part in parts):
+        allowed = f"1 to {limit}" if limit else "the numbers in the key_facts cell"
+        raise ValueError(f"{where}='{cell}': write the numbers of the lost or changed key facts ({allowed}; for example 2 or 1,3), or 0 when none is lost")
+    return frozenset(int(part) for part in parts)
+
+
+def load_judgments(path: str | Path, fact_counts: dict[str, int] | None = None) -> dict[str, dict]:
+    """Read the filled-in judgment sheet. Raises ValueError on an unknown verdict or fact number.
+
+    `fact_counts` gives the number of labelled key facts per key, so a fact number that does not exist is refused."""
     out: dict[str, dict] = {}
     with open(path, encoding="utf-8-sig", newline="") as fh:
-        for n, row in enumerate(csv.DictReader(fh), 2):
+        header = fh.readline()
+        fh.seek(0)
+        # Excel writes ";" between the cells where the comma is the decimal sign.
+        reader = csv.DictReader(fh, delimiter=";" if header.count(";") > header.count(",") else ",")
+        needed = [c for c in ("key", "rater_a", "rater_b") if c not in (reader.fieldnames or [])]
+        if needed:
+            raise ValueError(f"{path}: column(s) not found: {', '.join(needed)}. Keep the first row of the judgment sheet as it was written.")
+        for n, row in enumerate(reader, 2):
             key = (row.get("key") or "").strip()
             if not key:
                 continue
@@ -173,9 +229,13 @@ def load_judgments(path: str | Path) -> dict[str, dict]:
                 verdict = final or (a if a == b else "raters_disagree")
             else:
                 verdict = None  # not judged by two members yet, whatever `final` says
+            limit = (fact_counts or {}).get(key)
+            facts = {name: _fact_numbers(row.get(f"facts_lost_{name}"), f"{path}: line {n}: facts_lost_{name}", limit)
+                     for name in ("a", "b", "final")}
             out[key] = {
                 "verdict": verdict, "rater_a": a, "rater_b": b,
                 "auto_dialect_wrong": (row.get("auto_dialect_wrong") or "").strip().lower() in ("yes", "y", "1", "true"),
+                "facts_a": facts["a"], "facts_b": facts["b"], "facts_final": facts["final"],
             }
     return out
 
@@ -183,7 +243,46 @@ def load_judgments(path: str | Path) -> dict[str, dict]:
 def rater_agreement(judgments: dict[str, dict]) -> dict:
     both = [j for j in judgments.values() if j["rater_a"] and j["rater_b"]]
     agree = sum(1 for j in both if j["rater_a"] == j["rater_b"])
-    return {"judged_by_both": len(both), "agree": agree, "rate": agree / len(both) if both else None}
+    facts = [j for j in judgments.values() if j.get("facts_a") is not None and j.get("facts_b") is not None]
+    return {"judged_by_both": len(both), "agree": agree, "rate": agree / len(both) if both else None,
+            "facts_judged_by_both": len(facts), "facts_agree": sum(1 for j in facts if j["facts_a"] == j["facts_b"])}
+
+
+def judge_facts(example: dict, text: str, judgment: dict | None) -> tuple[list[dict], bool]:
+    """Every labelled key fact of `example` against one rewrite.
+
+    `auto_found` is the automatic first look. `lost` is what the two raters say: True when both marked
+    the fact (or `facts_lost_final` lists it), False when neither did, None while it is not judged.
+    A fact only one rater marked is `disputed` until `facts_lost_final` settles it.
+    The second value says whether the raters have judged the facts of this rewrite."""
+    labels = example.get("key_facts") or []
+    a = judgment.get("facts_a") if judgment else None
+    b = judgment.get("facts_b") if judgment else None
+    final = judgment.get("facts_final") if judgment else None
+    judged = not labels or (a is not None and b is not None)  # `final` settles a disagreement; it does not replace the two raters
+    facts = []
+    for n, label in enumerate(labels, 1):
+        if not judged:
+            lost, disputed = None, False
+        elif final is not None:
+            lost, disputed = n in final, False
+        else:
+            lost, disputed = n in a and n in b, (n in a) != (n in b)
+        facts.append({"n": n, "fact": label, "auto_found": fact_present(text, label),
+                      "checker_reads": checker_reads(label, example.get("must_keep", ())), "lost": lost, "disputed": disputed})
+    return facts, judged
+
+
+PROBLEM_VERDICTS = ("meaning_changed", "content_added")
+
+
+def detail_problem(verdict: str | None, facts: list[dict], facts_judged: bool) -> bool | None:
+    """Whether the raters found the substance of a rewrite wrong: the meaning changed, content was added, or a
+    key fact is lost or changed. None while they have not settled it. A leftover dialect word is not counted
+    here: it says nothing about the facts."""
+    if verdict in (None, "raters_disagree") or not facts_judged or any(f["disputed"] for f in facts):
+        return None
+    return verdict in PROBLEM_VERDICTS or any(f["lost"] for f in facts)
 
 
 # --------------------------------------------------------------------------- #
@@ -197,12 +296,21 @@ def assess(example: dict, pred: dict, judgments: dict[str, dict] | None = None) 
         status = str(pred.get("status", ""))
         # A model that gave no usable answer is the same failure with or without the pipeline.
         kind = "withheld" if status.startswith(("WITHHELD", "BLOCKED")) and status != STATUS_MODEL_FAILURE else "no_output"
+        # The rewrite the pipeline withheld is judged as well: was withholding needed?
+        candidate = pred.get("candidate") if kind == "withheld" else None
+        candidate_problem = None
+        if candidate:
+            held = (judgments or {}).get(judgment_key(example["id"], candidate, example.get("key_facts")))
+            held_facts, held_judged = judge_facts(example, candidate, held)
+            candidate_problem = detail_problem(held["verdict"] if held else None, held_facts, held_judged)
         return {**base, "released": False, "errors": [kind], "fact_error": False, "auto_pass": False,
-                "judged": True, "correct": False, "chrf": None, "output": None, "detail": {}, "key": None, "list_vs_raters": False}
+                "judged": True, "verdict_judged": True, "facts_judged": True,
+                "correct": False, "chrf": None, "output": None, "detail": {}, "key": None, "list_vs_raters": False,
+                "facts": [], "detail_problem": None, "candidate": candidate, "candidate_problem": candidate_problem}
 
     report = compare_facts(example["source"], out, example.get("must_keep", ()))
     words = find_dialect_words(out)
-    key = judgment_key(example["id"], out)
+    key = judgment_key(example["id"], out, example.get("key_facts"))
     judgment = (judgments or {}).get(key)
     errors: list[str] = []
     if not report.ok:
@@ -224,10 +332,19 @@ def assess(example: dict, pred: dict, judgments: dict[str, dict] | None = None) 
     verdict = judgment["verdict"] if judgment else None
     if verdict and verdict != "ok" and verdict not in errors:
         errors.append(verdict)
+    facts, facts_judged = judge_facts(example, out, judgment)
+    if any(f["lost"] for f in facts):
+        errors.append("key_fact_lost")
+    if any(f["disputed"] for f in facts) and "raters_disagree" not in errors:
+        errors.append("raters_disagree")
+    facts_fine = facts_judged and not any(f["lost"] or f["disputed"] for f in facts)
     return {
         **base, "released": True, "errors": errors, "fact_error": not report.ok, "auto_pass": auto_pass,
-        "judged": verdict is not None, "correct": auto_pass and verdict == "ok", "chrf": round(chrf(out, example["reference"]), 4),
-        "output": out,
+        "judged": verdict is not None and facts_judged, "verdict_judged": verdict is not None, "facts_judged": facts_judged,
+        "correct": auto_pass and verdict == "ok" and facts_fine,
+        "chrf": round(chrf(out, example["reference"]), 4),
+        "output": out, "facts": facts, "detail_problem": detail_problem(verdict, facts, facts_judged),
+        "candidate": None, "candidate_problem": None,
         "detail": {"missing": report.missing, "added": report.added, "names_lost": report.must_keep_missing,
                    "dialect_words": words["strong"], "ambiguous_words": words["ambiguous"]},
         "key": key,
@@ -247,6 +364,18 @@ def score_system(golden: list[dict], predictions: dict[str, dict], judgments: di
     fully_judged = bool(released) and all(e["judged"] for e in released)
     errors = Counter(err for e in per_example for err in e["errors"])
     chrfs = [e["chrf"] for e in released if e["chrf"] is not None]
+    facts = [f for e in released for f in e["facts"]]
+    lost = [f for f in facts if f["lost"]]
+    key_facts = {
+        "labelled": len(facts),
+        "judged": sum(1 for f in facts if f["lost"] is not None),
+        "lost": len(lost),
+        "lost_checker_reads": sum(1 for f in lost if f["checker_reads"]),
+        "lost_outside_checker": sum(1 for f in lost if not f["checker_reads"]),
+        "lost_although_found_automatically": sum(1 for f in lost if f["auto_found"]),
+        "disputed": sum(1 for f in facts if f["disputed"]),
+        "not_found_automatically": sum(1 for f in facts if not f["auto_found"]),
+    }
     return {
         "n": n,
         "released": len(released),
@@ -256,8 +385,12 @@ def score_system(golden: list[dict], predictions: dict[str, dict], judgments: di
         "auto_pass": sum(1 for e in per_example if e["auto_pass"]),
         "fully_judged": fully_judged,
         "judged": sum(1 for e in released if e["judged"]),
+        "verdicts_judged": sum(1 for e in released if e["verdict_judged"]),
+        "facts_judged": sum(1 for e in released if e["facts_judged"]),
         "correct": sum(1 for e in per_example if e["correct"]) if fully_judged else None,
         "released_with_fact_error": sum(1 for e in released if e["fact_error"]),
+        "released_with_added_fact": sum(1 for e in released if e["detail"].get("added")),
+        "key_facts": key_facts,
         "list_vs_raters": sum(1 for e in released if e["list_vs_raters"]),
         "error_counts": {k: errors.get(k, 0) for k in ERROR_TYPES},
         "chrf_mean": round(sum(chrfs) / len(chrfs), 4) if chrfs else None,
@@ -278,6 +411,100 @@ def count_transitions(before: dict, after: dict, key: str) -> dict:
         "stayed_right": sum(1 for i in ids if b[i] and a[i]), "stayed_wrong": sum(1 for i in ids if not b[i] and not a[i]),
         "wrong_to_right_ids": w2r, "right_to_wrong_ids": r2w,
     }
+
+
+# --------------------------------------------------------------------------- #
+# What the checks miss
+# --------------------------------------------------------------------------- #
+def score_checker(full: dict) -> dict:
+    """The fact checker as a classifier, on the full system.
+
+    Its decision is release or withhold. The truth is the raters' reading of the same rewrite
+    (`detail_problem`). `released_problem` is what the checker missed, and `withheld_fine` is
+    what it withheld without need. A rewrite the raters have not settled is `not_judged`."""
+    cells: Counter = Counter()
+    for e in full["per_example"]:
+        if e["released"]:
+            problem, row = e["detail_problem"], "released"
+        elif "withheld" in e["errors"]:
+            problem, row = e["candidate_problem"], "withheld"
+        else:
+            cells["no_output"] += 1
+            continue
+        cells[f"{row}_{'not_judged' if problem is None else 'problem' if problem else 'fine'}"] += 1
+    keys = ("released_fine", "released_problem", "released_not_judged", "withheld_fine", "withheld_problem", "withheld_not_judged", "no_output")
+    return {key: cells.get(key, 0) for key in keys}
+
+
+def score_needs(golden: list[dict]) -> dict | None:
+    """The missing-information check against the `missing` labels of the golden test.
+
+    The check reads the message only, so the result is the same whatever model is used.
+    None when the golden test carries no such labels."""
+    if not any("missing" in g for g in golden):
+        return None
+    rows = []
+    for g in golden:
+        labelled = [d for d in DETAILS if d in (g.get("missing") or [])]
+        rows.append({"id": g["id"], "labelled": labelled, "asked": find_missing(g["source"])})
+    incomplete = [r for r in rows if r["labelled"]]
+    complete = [r for r in rows if not r["labelled"]]
+    return {
+        "incomplete": len(incomplete), "complete": len(complete),
+        "asked_on_incomplete": sum(1 for r in incomplete if r["asked"]),
+        "asked_exactly": sum(1 for r in incomplete if r["asked"] == r["labelled"]),
+        "needless_asks": sum(1 for r in complete if r["asked"]),
+        "missed_ids": [r["id"] for r in incomplete if not r["asked"]],
+        "inexact_ids": [r["id"] for r in incomplete if r["asked"] and r["asked"] != r["labelled"]],
+        "needless_ids": [r["id"] for r in complete if r["asked"]],
+        "per_detail": {d: {"labelled": sum(1 for r in rows if d in r["labelled"]), "asked": sum(1 for r in rows if d in r["asked"]),
+                           "both": sum(1 for r in rows if d in r["labelled"] and d in r["asked"])} for d in DETAILS},
+        "rows": rows,
+    }
+
+
+def score_guessing(golden: list[dict], scores: dict[str, dict]) -> dict:
+    """On the messages labelled as lacking a needed detail, with the check switched off: how often does a
+    released rewrite carry a number, date, day, place or code that is not in the message?"""
+    incomplete = {g["id"] for g in golden if g.get("missing")}
+    out = {}
+    for system, score in scores.items():
+        rows = [e for e in score["per_example"] if e["id"] in incomplete]
+        released = [e for e in rows if e["released"]]
+        out[system] = {
+            "incomplete": len(rows), "released": len(released),
+            "added_fact": sum(1 for e in released if e["detail"].get("added")),
+            "added_fact_ids": [e["id"] for e in released if e["detail"].get("added")],
+            "content_added": sum(1 for e in released if "content_added" in e["errors"]) if score["fully_judged"] else None,
+        }
+    return out
+
+
+def score_deployed(needs: dict, full: dict) -> dict:
+    """The system as the app runs it: the missing-information check first, then the pipeline."""
+    by_id = {e["id"]: e for e in full["per_example"]}
+    judged = full["fully_judged"]
+    out: Counter = Counter()
+    for r in needs["rows"]:
+        e = by_id.get(r["id"])
+        if e is None:
+            continue
+        if r["asked"]:
+            out["asked_needlessly" if not r["labelled"] else "asked_rightly" if r["asked"] == r["labelled"] else "asked_inexactly"] += 1
+        elif r["labelled"]:
+            out["not_asked_although_incomplete"] += 1
+        elif not e["released"]:
+            out["withheld_or_no_output"] += 1
+        elif not judged:
+            out["released_not_judged"] += 1
+        else:
+            out["released_correct" if e["correct"] else "released_not_correct"] += 1
+    keys = ("asked_rightly", "asked_inexactly", "asked_needlessly", "not_asked_although_incomplete", "released_correct",
+            "released_not_correct", "released_not_judged", "withheld_or_no_output")
+    result = {key: out.get(key, 0) for key in keys}
+    result["handled_as_intended"] = result["asked_rightly"] + result["released_correct"] if judged else None
+    result["n"] = sum(out.values())
+    return result
 
 
 # --------------------------------------------------------------------------- #
@@ -302,10 +529,116 @@ def _cell(text: str | None, limit: int = 140) -> str:
     return t if len(t) <= limit else t[: limit - 1] + "…"
 
 
+def _key_fact_sections(scores: dict[str, dict], present: list[str], by_id: dict[str, dict]) -> list[str]:
+    """Labelled key facts in released rewrites, what the checks missed, and the checker as a classifier."""
+    if not any(scores[s]["key_facts"]["labelled"] for s in present):
+        return []
+    L = ["", "## Key facts in released rewrites", "",
+         ("Every golden message lists its key facts. For each rewrite a system released, the two raters mark the facts that are "
+          "lost or changed. The automatic match is a first look only: it cannot tell a fact kept in other words from a lost one."), "",
+         ("| System | Released rewrites | Labelled facts in them | Lost or changed (two raters) | of these, a kind the checker reads | "
+          "of these, outside what the checker reads | Raters disagree | Not found by the automatic match |"),
+         "|---|---|---|---|---|---|---|---|"]
+    for s in present:
+        r, k = scores[s], scores[s]["key_facts"]
+        if k["labelled"] and k["judged"] == k["labelled"]:
+            human = [str(k["lost"]), str(k["lost_checker_reads"]), str(k["lost_outside_checker"]), str(k["disputed"])]
+        elif k["judged"]:
+            human = [f"{k['lost']} (partial: {k['judged']} of {k['labelled']} judged)", str(k["lost_checker_reads"]), str(k["lost_outside_checker"]), str(k["disputed"])]
+        else:
+            human = ["not judged"] * 4
+        L.append(f"| {SYSTEM_LABELS[s]} | {r['released']} | {k['labelled']} | " + " | ".join(human) + f" | {k['not_found_automatically']} |")
+    if "full" not in present:
+        return L
+    full = scores["full"]
+    k = full["key_facts"]
+    L += ["", "### What the checks missed (full system)", ""]
+    lost = [(e, f) for e in full["per_example"] if e["released"] for f in e["facts"] if f["lost"]]
+    if not k["judged"]:
+        L.append("Not judged yet. Until the two raters fill in the `facts_lost` columns this report cannot say what the checker let through.")
+    elif lost:
+        L += [f"{len(lost)} labelled key fact(s) are lost or changed in rewrites the pipeline released"
+              + ("" if k["judged"] == k["labelled"] else f" (so far: {k['judged']} of {k['labelled']} facts judged)") + ".", "",
+              "| id | Key fact | Checker reads this kind | Found by the automatic match | Released rewrite |", "|---|---|---|---|---|"]
+        for e, f in lost:
+            L.append(f"| {e['id']} | {_cell(f['fact'])} | {'yes' if f['checker_reads'] else 'no'} | {'yes' if f['auto_found'] else 'no'} | {_cell(e['output'])} |")
+    else:
+        L.append(f"None of the {k['judged']} judged key facts in released rewrites is marked lost or changed"
+                 + ("." if k["judged"] == k["labelled"] else f" ({k['labelled'] - k['judged']} not judged yet)."))
+    if k["disputed"]:
+        L += ["", (f"{k['disputed']} more key fact(s) were marked by one rater only. They are neither lost nor kept until the two "
+                   "raters settle them in `facts_lost_final`, and the rewrites they belong to are not counted as correct.")]
+    added = [e for e in full["per_example"] if e["released"] and "content_added" in e["errors"]]
+    if added:
+        L += ["", f"The raters marked {len(added)} released rewrite(s) `content_added`: something is in the rewrite that the message does not say.", "",
+              "| id | Source | Released rewrite |", "|---|---|---|"]
+        L += [f"| {e['id']} | {_cell(by_id[e['id']]['source'])} | {_cell(e['output'])} |" for e in added]
+    c = score_checker(full)
+    L += ["", "### The fact checker as a classifier (full system)", "",
+          ("The pipeline's decision against the raters' reading of the same rewrite. A rewrite has a problem when the raters "
+           "marked it `meaning_changed` or `content_added`, or marked a key fact as lost or changed. The rewrites the pipeline "
+           "withheld are judged too."), "",
+          "| Pipeline decision | Meaning and key facts kept | Meaning changed, content added or a key fact lost | Not settled (not judged, or the raters disagree) |",
+          "|---|---|---|---|",
+          f"| Released | {c['released_fine']} | {c['released_problem']} (missed by the checks) | {c['released_not_judged']} |",
+          f"| Withheld | {c['withheld_fine']} (withheld without need) | {c['withheld_problem']} (rightly withheld) | {c['withheld_not_judged']} |", "",
+          f"No output from the model: {c['no_output']}. A leftover dialect word is not counted in this table; it has its own row among the error types."]
+    return L
+
+
+def _needs_sections(meta: dict) -> list[str]:
+    """The missing-information check against the golden labels, guessing with the check off, and the system as deployed."""
+    needs = meta.get("needs")
+    if not needs:
+        return []
+    L = ["", "## Missing-information check", "",
+         "The check runs before the model and reads the message only, so these numbers do not depend on the model.", "",
+         f"- Messages labelled as lacking a needed detail: {needs['incomplete']} of {needs['incomplete'] + needs['complete']}",
+         (f"- The check asked on {_pct(needs['asked_on_incomplete'], needs['incomplete'])} of them, "
+          f"and for exactly the labelled details on {_pct(needs['asked_exactly'], needs['incomplete'])}"),
+         f"- Needless asks on complete messages: {_pct(needs['needless_asks'], needs['complete'])}", "",
+         "| Detail | Labelled as missing | Asked for | Both |", "|---|---|---|---|"]
+    L += [f"| {d} | {v['labelled']} | {v['asked']} | {v['both']} |" for d, v in needs["per_detail"].items()]
+    for title, key in (("Not asked although a detail is missing", "missed_ids"), ("Asked, but not for the labelled details", "inexact_ids"),
+                       ("Asked needlessly", "needless_ids")):
+        if needs[key]:
+            L += ["", f"{title}: " + ", ".join(needs[key])]
+    guessing = meta.get("guessing")
+    if guessing:
+        L += ["", "### Guessing when the check is switched off", "",
+              ("The same incomplete messages, rewritten without asking. A rewrite that adds a number, a date in digits, a named "
+               "day or month, a listed place or a code the message does not have is counted automatically as a guess. A period "
+               "given in words (\"الأسبوع القادم\") or a place outside the list is not; the raters' `content_added` covers those."), "",
+              "| System | Incomplete messages | Released | Released with an added detail (automatic) | Marked `content_added` by the raters |", "|---|---|---|---|---|"]
+        for s in SYSTEMS:
+            if s in guessing:
+                g = guessing[s]
+                human = "not judged" if g["content_added"] is None else str(g["content_added"])
+                L.append(f"| {SYSTEM_LABELS[s]} | {g['incomplete']} | {g['released']} | {g['added_fact']} | {human} |")
+    deployed = meta.get("deployed")
+    if deployed:
+        d = deployed
+        L += ["", "### As deployed: the check first, then the pipeline", "",
+              "| Outcome | Messages |", "|---|---|",
+              f"| Asked for exactly the missing details | {d['asked_rightly']} |",
+              f"| Asked, but not for exactly the missing details | {d['asked_inexactly']} |",
+              f"| Asked needlessly | {d['asked_needlessly']} |",
+              f"| Not asked although a detail is missing | {d['not_asked_although_incomplete']} |",
+              f"| Rewritten and correct | {d['released_correct'] if d['handled_as_intended'] is not None else 'not judged'} |",
+              f"| Rewritten and not correct | {d['released_not_correct'] if d['handled_as_intended'] is not None else 'not judged'} |",
+              f"| Withheld or no output | {d['withheld_or_no_output']} |", "",
+              "Handled as intended (asked for exactly the missing details, or rewritten correctly): "
+              + ("not judged" if d["handled_as_intended"] is None else _pct(d["handled_as_intended"], d["n"]))]
+    return L
+
+
 def render_markdown(meta: dict, scores: dict[str, dict], transitions: list[dict], golden: list[dict], max_examples: int = 3) -> str:
     by_id = {g["id"]: g for g in golden}
     present = [s for s in SYSTEMS if s in scores]
     judged = all(scores[s]["fully_judged"] for s in present)
+    verdicts_done = all(scores[s]["released"] and scores[s]["verdicts_judged"] == scores[s]["released"] for s in present)
+    facts_done = all(scores[s]["released"] and scores[s]["facts_judged"] == scores[s]["released"] for s in present)
+    has_key_facts = any(scores[s]["key_facts"]["labelled"] for s in present)
     L: list[str] = []
     if meta.get("dry_run"):
         L += ["# DRY RUN with the mock client: these numbers are NOT results", "",
@@ -315,15 +648,29 @@ def render_markdown(meta: dict, scores: dict[str, dict], transitions: list[dict]
     L += [f"- Golden test: `{meta['golden']}`, {meta['n']} examples, SHA-256 `{meta['golden_sha256'][:16]}…`",
           f"- Golden test commit: {meta.get('golden_commit') or 'not in a git repository yet'}",
           f"- Run: {meta['created_utc']}; models: " + ", ".join(f"{s} = `{meta['clients'].get(s, '?')}`" for s in present),
-          f"- Meaning check: {'judged by two members' if judged else 'NOT complete. The comparison below uses the automatic checks only, so it is an upper bound on correctness.'}"]
+          "- Meaning check: " + ("judged by two members" if verdicts_done else "NOT complete.")]
+    if has_key_facts:
+        L.append("- Key facts: " + ("marked by two members" if facts_done else
+                                    "NOT complete. Some rewrites still lack `facts_lost_a` or `facts_lost_b` (write 0 when no fact is lost)."))
+    if not judged:
+        L.append("- No rewrite is counted as correct until every rewrite is judged. The comparison below uses the automatic checks only, "
+                 "so it is an upper bound on correctness.")
     unresolved = max((scores[s]["error_counts"]["raters_disagree"] for s in present), default=0)
     if unresolved:
-        L.append(f"- Up to {unresolved} rewrite(s) per system have a rater disagreement that is not reconciled in the `final` column. They are counted as not correct until it is.")
+        L.append(f"- Up to {unresolved} rewrite(s) per system have a rater disagreement that is not reconciled yet (`final` for the verdict, "
+                 "`facts_lost_final` for the key facts). They are counted as not correct until it is.")
     if meta.get("agreement") and meta["agreement"]["judged_by_both"]:
         ag = meta["agreement"]
         L.append(f"- Rater agreement before reconciliation: {ag['agree']}/{ag['judged_by_both']} ({ag['rate']:.1%})")
+        if ag.get("facts_judged_by_both"):
+            L.append(f"- Rewrites where both raters marked the same key facts as lost: {ag['facts_agree']}/{ag['facts_judged_by_both']}")
     L += ["", "## Comparison", "",
-          "| System | Released | Withheld | No output | Passed automatic checks | Correct (all three checks) | Released with a fact error | Repaired | chrF-style |",
+          ("All systems rewrite every message here, including the messages on which the app would first ask for a missing "
+           "detail. The missing-information check is scored further down, and \"As deployed\" shows what the app does."
+           if meta.get("needs") else
+           "All systems rewrite every message here; the app would first ask about a message that lacks a needed detail. "
+           "This golden test does not label missing details, so the missing-information check is not scored."), "",
+          "| System | Released | Withheld | No output | Passed automatic checks | Correct (all checks) | Released with a fact error | Repaired | chrF-style |",
           "|---|---|---|---|---|---|---|---|---|"]
     for s in present:
         r = scores[s]
@@ -334,14 +681,19 @@ def render_markdown(meta: dict, scores: dict[str, dict], transitions: list[dict]
               "*Released with a fact error* is over released messages only.", "",
           "## Error types (count of examples; one example can have several)", "",
           "| Error type | " + " | ".join(SYSTEM_LABELS[s] for s in present) + " |", "|---|" + "---|" * len(present)]
+    labelled = any("key_facts" in g for g in golden)
     for err in ERROR_TYPES:
         cells = []
         for s in present:
             r = scores[s]
-            if err not in HUMAN_ERRORS or r["fully_judged"] or not r["released"]:
+            done = {"meaning_changed": r["verdicts_judged"], "content_added": r["verdicts_judged"],
+                    "key_fact_lost": r["facts_judged"]}.get(err, r["judged"])   # rewrites judged for this kind of error
+            if err == "key_fact_lost" and not labelled:
+                cells.append("not labelled")   # a golden test without key facts: 0 would read as "checked, none lost"
+            elif err not in HUMAN_ERRORS or done == r["released"]:
                 cells.append(str(r["error_counts"][err]))
-            elif r["judged"]:
-                cells.append(f"{r['error_counts'][err]} (partial: {r['judged']} of {r['released']} judged)")
+            elif done:
+                cells.append(f"{r['error_counts'][err]} (partial: {done} of {r['released']} judged)")
             else:
                 cells.append("not judged")
         L.append(f"| {err} | " + " | ".join(cells) + " |")
@@ -361,6 +713,9 @@ def render_markdown(meta: dict, scores: dict[str, dict], transitions: list[dict]
         for key in sorted(conflicts):
             e = conflicts[key]
             L.append(f"| `{key}` | {e['id']} | {_cell(', '.join(e['detail']['dialect_words']))} | {_cell(e['output'])} |")
+
+    L += _key_fact_sections(scores, present, by_id)
+    L += _needs_sections(meta)
 
     L += ["", "## Examples that changed", "",
           "With about 100 examples a small gain can be chance, so the changes are counted in both directions.", "",
@@ -414,7 +769,9 @@ def run_predictions(system: str, golden: list[dict], args: argparse.Namespace) -
         if not ok:
             raise LLMUnavailable(why)
     if system == "full":
-        pipeline = RewritePipeline(client)
+        # The three systems are compared on rewriting every message, so the missing-information check is off here.
+        # It is scored on its own against the golden labels (`score_needs`, `score_deployed`).
+        pipeline = RewritePipeline(client, ask=False)
         return [predict_full(pipeline, g) for g in golden], client.name + "+pipeline"
     return [predict_model_only(client, g) for g in golden], client.name
 
@@ -485,8 +842,14 @@ def main(argv: list[str] | None = None) -> int:
 
     judgments = None
     if args.judgments:
+        by_id = {g["id"]: g for g in golden}
+        fact_counts = {judgment_key(pid, text, by_id[pid].get("key_facts")): len(by_id[pid].get("key_facts") or [])
+                       for preds in predictions.values() for pid, pred in preds.items() if pid in by_id for text in texts_to_judge(pred)}
         try:
-            judgments = load_judgments(args.judgments)
+            judgments = load_judgments(args.judgments, fact_counts)
+            if fact_counts and not set(judgments) & set(fact_counts):
+                raise ValueError(f"{args.judgments}: no row matches a rewrite of this run. Is it the sheet written by the run that made "
+                                 "these predictions, and for this golden test?")
         except (OSError, ValueError) as exc:
             print(f"ERROR: {exc}")
             return 1
@@ -512,7 +875,14 @@ def main(argv: list[str] | None = None) -> int:
         "golden": args.golden, "n": len(golden), "golden_sha256": golden_sha, "golden_commit": _golden_commit(args.golden),
         "created_utc": created, "clients": clients, "dry_run": dry_run, "partial": bool(args.limit),
         "agreement": rater_agreement(judgments) if judgments else None,
+        "needs": score_needs(golden),
     }
+    if meta["needs"]:
+        meta["guessing"] = score_guessing(golden, scores)
+        if "full" in scores:
+            meta["deployed"] = score_deployed(meta["needs"], scores["full"])
+    if "full" in scores:
+        meta["checker"] = score_checker(scores["full"])
     (out_dir / "metrics.json").write_text(json.dumps({"meta": meta, "scores": scores, "transitions": transitions}, ensure_ascii=False, indent=2), encoding="utf-8")
     report = render_markdown(meta, scores, transitions, golden)
     if args.limit:
@@ -523,6 +893,10 @@ def main(argv: list[str] | None = None) -> int:
         r = scores[s]
         print(f"  {s:8s} released {r['released']}/{r['n']}  auto-pass {r['auto_pass']}  correct {r['correct'] if r['correct'] is not None else 'not judged'}  "
               f"released-with-fact-error {r['released_with_fact_error']}")
+    if meta["needs"]:
+        needs = meta["needs"]
+        print(f"  missing-information check: asked on {needs['asked_on_incomplete']}/{needs['incomplete']} incomplete messages, "
+              f"needless asks {needs['needless_asks']}/{needs['complete']}")
     return 0
 
 

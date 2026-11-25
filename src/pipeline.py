@@ -1,14 +1,18 @@
 """The dialect-to-MSA pipeline.
 
-    message ──► LLM rewriter      (Saudi dialect → formal MSA)
-            ──► fact checker      (numbers, dates, times, e-mails, Latin words, listed names)
+    message ──► missing-information check (a booking request without its date or destination, a request
+                                           about a booking without its reference: ask, do not rewrite)
+            ──► LLM rewriter      (Saudi dialect → formal MSA)
+            ──► fact checker      (numbers, dates, times, e-mails, Latin words, days, listed places and names)
             ──► one repair attempt (the model is told which facts differ)
             ──► release, or withhold and hand back the original
 
 Failure policy: a rewrite is released only when the model answered and the fact
 checker found no difference. Otherwise the rewrite is withheld and the caller
 receives the original message with a status explaining why. A rewrite with a
-changed fact is never released silently.
+changed fact is never released silently. When a needed detail is missing the
+caller receives the questions to ask; the model is not called, so it cannot
+fill the gap with a guess.
 """
 from __future__ import annotations
 
@@ -21,6 +25,7 @@ from typing import Protocol
 from .common import strip_marks
 from .facts import compare_facts, extract_facts
 from .lexicon import rule_based_rewrite
+from .needs import find_missing, questions
 from .prompts import build_messages, build_repair_messages
 
 DEFAULT_HOST = "http://localhost:11434"
@@ -37,15 +42,17 @@ STATUS_SUSPECT = "WITHHELD_SUSPECT_OUTPUT"
 STATUS_MODEL_FAILURE = "WITHHELD_MODEL_FAILURE"
 STATUS_TOO_LONG = "BLOCKED_INPUT_TOO_LONG"
 STATUS_EMPTY = "EMPTY_INPUT"
+STATUS_NEEDS_INFO = "NEEDS_INFO"
 
 MESSAGES_AR = {
-    STATUS_OK: "تمت إعادة الصياغة، وتطابقت الأرقام والتواريخ والتفاصيل مع الرسالة الأصلية.",
+    STATUS_OK: "تمت إعادة الصياغة، ولم يجد الفاحص اختلافاً في الأرقام والتواريخ والأوقات والأيام والأماكن المدرجة. ما عدا ذلك لم يُفحص آلياً.",
     STATUS_REPAIRED: "رصد الفاحص اختلافاً في التفاصيل، فطُلب من النموذج التصحيح مرة واحدة ثم نجح الفحص.",
     STATUS_FACT_MISMATCH: "بقي اختلاف في التفاصيل بعد محاولة التصحيح. حُجبت إعادة الصياغة وأُعيدت الرسالة الأصلية، وتحتاج صياغة يدوية.",
     STATUS_SUSPECT: "مخرجات النموذج لا تشبه إعادة صياغة للرسالة (طول أو لغة غير متوقعة). حُجبت وأُعيدت الرسالة الأصلية.",
     STATUS_MODEL_FAILURE: "تعذّر الحصول على مخرجات من النموذج. أُعيدت الرسالة الأصلية كما هي.",
     STATUS_TOO_LONG: "الرسالة أطول من الحد المسموح. قسّمها إلى رسائل أقصر ثم أعد المحاولة.",
     STATUS_EMPTY: "لم يُدخل نص.",
+    STATUS_NEEDS_INFO: "ينقص الرسالة تفصيل لازم لتنفيذ الطلب، والنظام لا يخمّنه. اسأل العميل عنه ثم أعد المحاولة.",
 }
 
 
@@ -67,8 +74,8 @@ class LLMClient(Protocol):
 class OllamaClient:
     """Calls a model served locally by Ollama (`/api/chat`).
 
-    `few_shot=True` is the baseline configuration: the untuned model with the
-    full instruction plus worked examples. The tuned model uses `few_shot=False`,
+    `few_shot=True` is the baseline configuration: the untuned model with its
+    own prompt and worked examples (`build_baseline_messages`). The tuned model uses `few_shot=False`,
     the format it was trained on.
     """
 
@@ -292,6 +299,8 @@ class PipelineResult:
     check: dict = field(default_factory=dict)        # fact report of the last candidate
     first_check: dict = field(default_factory=dict)  # fact report before the repair
     shape: str | None = None
+    missing_info: list = field(default_factory=list)   # needed details the message does not give (see src/needs.py)
+    questions_ar: list = field(default_factory=list)   # one question per missing detail
     message_ar: str = ""
     error: str | None = None
     elapsed_ms: int = 0
@@ -301,10 +310,11 @@ class PipelineResult:
 
 
 class RewritePipeline:
-    def __init__(self, client: LLMClient, max_input_chars: int = 2000, repair: bool = True) -> None:
+    def __init__(self, client: LLMClient, max_input_chars: int = 2000, repair: bool = True, ask: bool = True) -> None:
         self.client = client
         self.max_input_chars = max_input_chars
         self.repair = repair
+        self.ask = ask  # stop and ask when a needed detail is missing
 
     def _done(self, t0: float, status: str, original: str, **kw) -> PipelineResult:
         released = status in (STATUS_OK, STATUS_REPAIRED)
@@ -318,7 +328,10 @@ class RewritePipeline:
             **kw,
         )
 
-    def run(self, text: str, must_keep: tuple[str, ...] | list[str] = ()) -> PipelineResult:
+    def run(self, text: str, must_keep: tuple[str, ...] | list[str] = (), ask: bool | None = None) -> PipelineResult:
+        """Rewrite one message. `ask=False` skips the missing-information check for this
+        call: the user chose to go on. The fact checker still refuses an added number, date in digits, named day or
+        month, listed place or code; it does not see a period given in words ("الأسبوع القادم") or a place outside its list."""
         t0 = time.perf_counter()
         original = text or ""
         message = original.strip()
@@ -326,6 +339,10 @@ class RewritePipeline:
             return self._done(t0, STATUS_EMPTY, original)
         if len(message) > self.max_input_chars:
             return self._done(t0, STATUS_TOO_LONG, original)
+        if self.ask if ask is None else ask:
+            needed = find_missing(message)
+            if needed:
+                return self._done(t0, STATUS_NEEDS_INFO, original, missing_info=needed, questions_ar=questions(needed))
 
         few_shot = getattr(self.client, "few_shot", False)
         first = run_model(self.client, build_messages(message, few_shot=few_shot))

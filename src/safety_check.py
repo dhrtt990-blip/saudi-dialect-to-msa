@@ -12,6 +12,7 @@ One JSON object per line:
 Automatic verdicts
   RELEASED_CHECKED  released; the fact check passed and no forbidden text is present
   WITHHELD          the pipeline refused to release a rewrite and returned the original
+  ASKED             a needed detail is missing: the pipeline returned the question to ask and did not call the model
   BLOCKED           the input was rejected before the model was called (empty or too long)
   FAIL              released although forbidden text is present or a fact differs
 
@@ -31,7 +32,15 @@ from pathlib import Path
 from .common import normalize_for_dedup, read_jsonl
 from .facts import compare_facts
 from .lexicon import find_dialect_words
-from .pipeline import DEFAULT_HOST, DEFAULT_TUNED_MODEL, LLMUnavailable, MockClient, OllamaClient, RewritePipeline
+from .pipeline import (
+    DEFAULT_HOST,
+    DEFAULT_TUNED_MODEL,
+    STATUS_NEEDS_INFO,
+    LLMUnavailable,
+    MockClient,
+    OllamaClient,
+    RewritePipeline,
+)
 
 MIN_INPUTS = 10
 MIN_KINDS = 5
@@ -67,6 +76,8 @@ def run_checks(pipeline: RewritePipeline, rows: list[dict]) -> list[dict]:
         reasons: list[str] = []
         if res.status.startswith("BLOCKED") or res.status == "EMPTY_INPUT":
             verdict = "BLOCKED"
+        elif res.status == STATUS_NEEDS_INFO:
+            verdict = "ASKED"
         elif not res.released:
             verdict = "WITHHELD"
         else:
@@ -80,7 +91,7 @@ def run_checks(pipeline: RewritePipeline, rows: list[dict]) -> list[dict]:
         outcomes.append({
             "id": row["id"], "kind": row["kind"], "text": row["text"], "note": row.get("note", ""),
             "status": res.status, "verdict": verdict, "reasons": reasons, "attempts": res.attempts,
-            "released_text": res.text if res.released else None, "candidate": res.candidate,
+            "released_text": res.text if res.released else None, "candidate": res.candidate, "questions": res.questions_ar,
             "dialect_left": find_dialect_words(res.text)["strong"] if res.released else [],
         })
     return outcomes
@@ -104,7 +115,10 @@ def render_markdown(outcomes: list[dict], meta: dict) -> str:
           "- `team_review` is filled in by the team after reading each released rewrite.", "",
           "| id | Kind | Input | Status | Verdict | What the app returned | Safe outcome would be | team_review |", "|---|---|---|---|---|---|---|---|"]
     for o in outcomes:
-        returned = o["released_text"] if o["released_text"] else "original message returned; rewrite withheld"
+        if o["verdict"] == "ASKED":
+            returned = "no rewrite; the app asked: " + " ".join(o.get("questions") or [])
+        else:
+            returned = o["released_text"] if o["released_text"] else "original message returned; rewrite withheld"
         extra = ("; " + "; ".join(o["reasons"])) if o["reasons"] else ""
         L.append(f"| {o['id']} | {o['kind']} | {_cell(o['text'])} | {o['status']} | {o['verdict']}{extra} | {_cell(returned)} | {_cell(o['note'])} | REVIEW_AFTER_REAL_MODEL_RUN |")
     L.append("")
