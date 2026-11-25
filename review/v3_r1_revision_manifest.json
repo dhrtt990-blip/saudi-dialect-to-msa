@@ -15,12 +15,23 @@
   "missing_detail_rows": 40,
   "original_11_case_list_available": true,
   "selection_basis": "Compared the original 11 missing-information disagreements with the 11 key-fact edits. Four IDs coincide. The lists measure different properties.",
-  "authority": "Team leader explicitly authorized technical corrections; no fresh peer or instructor sign-off of candidate digest claimed.",
+  "authority": "Team leader explicitly authorized the technical corrections and on 25 November 2026 explicitly authorized final freeze and approval of V3-R1 for the team's next training phase. This is a leader authorization record, not new peer signatures or exact-hash instructor sign-off.",
   "prior_approval_preserved": true,
   "training_and_evaluation": "not run",
-  "freeze": "Effective upon approval and merge of this activation change.",
+  "freeze": "Active on main after PR #4 merge; frozen data commit remains unchanged.",
   "remaining_review": [
-    "Human semantic judgment of real V3-R1 outputs after training."
+    "Run data preparation and verify no remaining overlap with the frozen V3-R1 data before training.",
+    "Evaluate missing-information disagreements on frozen labels; reconciliation distinguishes the two 11-case lists but does not prove that the checker disagreements were fixed.",
+    "Human semantic judgment of real V3-R1 outputs after training.",
+    "Resolve licence terms before publishing derived artefacts."
   ],
-  "freeze_commit": "51127bdfb65a19adb763501d139515dd4479ff27"
+  "freeze_commit": "51127bdfb65a19adb763501d139515dd4479ff27",
+  "activation_commit": "1fe1f8a0e10813cb421608831938221135cba735",
+  "leader_final_authorization": {
+    "recorded_on": "2026-11-25",
+    "scope": "Freeze and approve the exact V3-R1 benchmark for the next training phase",
+    "basis": "Explicit instruction from the team leader in the project conversation",
+    "new_peer_signatures": false,
+    "new_instructor_exact_hash_signoff": false
+  }
 }

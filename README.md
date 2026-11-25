@@ -1,8 +1,8 @@
 # Saudi Dialect to Modern Standard Arabic (MSA) Rewriter
 
-## 🚧 CURRENT TEAM WORK — Travel agency V3-R1
+## CURRENT TEAM WORK — Travel agency V3-R1 (FROZEN_ACTIVE)
 
-**Do not start new training or evaluation with V2.2.** The current travel benchmark candidate is [data/golden_v3_r1_candidate.jsonl](data/golden_v3_r1_candidate.jsonl), SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. It is technically revised but **not frozen/active**. PR [#3](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/pull/3) is the handoff; main remains historical until merge. Use [the V3-R1 start instructions](docs/START_TRAVEL_V3_R1.md). The training notebook blocks until the active freeze record is committed. `data/golden_test.jsonl` is V2.2, historical only; `data/golden_v3.jsonl` is the prior approved V3 snapshot, not the revised candidate. Never mix their predictions or results. Preserve the historical files and hashes.
+**Use only the frozen V3-R1 benchmark for new travel-desk work.** [Start here](docs/START_TRAVEL_V3_R1.md) and [training notebook](notebooks/train_qwen3_lora_colab.ipynb). The active file is [data/golden_v3_r1_candidate.jsonl](data/golden_v3_r1_candidate.jsonl) (filename retained for traceability). PR #4 activated it on main; freeze commit `51127bdfb65a19adb763501d139515dd4479ff27`; SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Team leader final freeze authorization is recorded. Run the notebook preflight and require zero remaining training/validation overlap before training. V2.2 and earlier V3 snapshots are historical only; never use their results as V3-R1 results. No new real-model results are claimed.
 
 **KAUST Academy — NLP Applications (2026)**  
 **Project:** Saudi Dialect to Modern Standard Arabic Rewriting with a Fact-Preservation Check
