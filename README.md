@@ -2,7 +2,7 @@
 
 ## CURRENT TEAM WORK — Travel agency V3-R1 (FROZEN_ACTIVE)
 
-**Use only the frozen V3-R1 benchmark for new travel-desk work.** [Start here](docs/START_TRAVEL_V3_R1.md) and [training notebook](notebooks/train_qwen3_lora_colab.ipynb). The active file is [data/golden_v3_r1_candidate.jsonl](data/golden_v3_r1_candidate.jsonl) (filename retained for traceability). PR #4 activated it on main; freeze commit `51127bdfb65a19adb763501d139515dd4479ff27`; SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Team leader final freeze authorization is recorded. Run the notebook preflight and require zero remaining training/validation overlap before training. V2.2 and earlier V3 snapshots are historical only; never use their results as V3-R1 results. No new real-model results are claimed.
+**Use only the frozen V3-R1 benchmark for new travel-desk work.** [Start here](docs/START_TRAVEL_V3_R1.md) and [training notebook](notebooks/train_qwen3_lora_colab.ipynb). The active file is [data/golden_v3_r1_candidate.jsonl](data/golden_v3_r1_candidate.jsonl) (filename retained for traceability). PR #4 activated it on main; freeze commit `51127bdfb65a19adb763501d139515dd4479ff27`; SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Team leader final freeze authorization is recorded. Run the notebook preflight and require zero remaining training/validation overlap before training. V2.2 and earlier V3 snapshots are historical only; never use their results as V3-R1 results. The R1 adapter completed 1,078 steps and was saved, reloaded and converted to matched Q8_0 files; see [execution evidence](docs/V3_R1_EXECUTION.md) and [model card](docs/MODEL_CARD.md). Golden model-quality comparison remains pending until actual local evaluation.
 
 **KAUST Academy — NLP Applications (2026)**  
 **Project:** Saudi Dialect to Modern Standard Arabic Rewriting with a Fact-Preservation Check
@@ -11,14 +11,14 @@ This project aims to rewrite short Saudi-dialect messages into formal Modern Sta
 
 ## Approach
 
-- Planned backbone: **Qwen3-1.7B** with **LoRA** fine-tuning.
+- Backbone: **Qwen3-1.7B** with **LoRA** fine-tuning.
 - Input: Saudi-dialect Arabic text.
 - Output: an MSA rewrite plus deterministic checks of important facts.
 - Safety workflow: validate the rewrite, attempt a bounded repair if applicable, and return the original if fact preservation cannot be verified by the implemented checks.
 
-A rule-based checker **cannot guarantee full semantic or factual preservation**. The model fine-tuning and real-model evaluation are planned work, not completed experimental results.
+A rule-based checker **cannot guarantee full semantic or factual preservation**. R1 training and saved-adapter reload are complete. Human semantic correctness requires independent review of actual outputs.
 
-## Golden Test — team-approved v2.2 (20 November 2026)
+## Historical Golden Test — team-approved V2.2 (20 November 2026)
 
 - 100 Saudi-dialect messages, each with an MSA reference and protected-fact fields.
 - Each of four members approved 25 messages and reviewed 25 of another member's messages.

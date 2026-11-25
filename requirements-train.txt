@@ -1,7 +1,8 @@
 # Training environment (Google Colab, GPU). Colab's own PyTorch is used, so torch is not pinned here.
-# These were the latest versions on PyPI on 2026-11-15. The combination has not been run yet.
-# After the first successful run, commit requirements-train.lock.txt (written by the notebook's last step):
-# that file is the real record of the versions the adapter was trained with.
+# Core training-package versions from the recorded R1 Tesla T4 environment.
+# Full installed and actually loaded module versions are recorded separately in run provenance.
+# Colab supplies torch 2.14.1+cu130 in the recorded run.
+# Remove optional incompatible torchao before importing PEFT.
 transformers==5.23.0
 peft==0.21.3
 trl==1.18.0
@@ -9,3 +10,6 @@ datasets==5.2.0
 accelerate==1.15.0
 bitsandbytes==0.50.2
 huggingface_hub==2.4.0
+
+# Install before importing datasets on a fresh runtime. Historical loaded-version drift is disclosed.
+pyarrow==23.0.1

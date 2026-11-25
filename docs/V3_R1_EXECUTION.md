@@ -18,8 +18,18 @@ The unchanged rule checker asks on 33/40 incomplete messages, asks for exactly t
 
 ## Tests and runtime
 
-272 tests passed locally. An initial sandboxed run could not bind the local HTTP test server; rerunning with local server access passed all tests. The Mac is an Apple M5 with 16 GB unified memory and approximately 690 GiB free disk space, with no CUDA. Colab supplied a Tesla T4, Python 3 GPU backend, approximately 12.7 GB RAM and 112.6 GB disk. Weights for Qwen3-1.7B downloaded and loaded successfully.
+281 tests passed locally after adding delivery and human-rating guards; final edits require the final test run. An initial sandboxed run could not bind the local HTTP test server; rerunning with local server access passed all tests. The Mac is an Apple M5 with 16 GB unified memory and approximately 690 GiB free disk space, with no CUDA. Colab supplied a Tesla T4, Python 3 GPU backend, approximately 12.7 GB RAM and 112.6 GB disk. Weights for Qwen3-1.7B downloaded and loaded successfully.
 
 Training initialization found optional `torchao 0.10.0` incompatible with PEFT's minimum 0.16.0. The failed attempt is retained in its own output directory; no optimizer step was claimed for it. Execution records must establish a positive step count, a saved adapter, final metrics and successful reload before marking training complete.
 
 Detailed model predictions, blind rating sheets and error examples stay in the private team bundle. Public publication covers code and aggregate results only. No new weights are published while corpus licensing remains unresolved.
+
+## Completed R1 training and export
+
+Run `travel-v3-r1-20261125T195842Z` completed 1,078 steps and two epochs on the Tesla T4. Trainer runtime was 7,042.7243 seconds; the final adapter was saved after 7,044.2135 seconds. Validation loss was 0.0969375 after epoch one and 0.0879845 after epoch two. These losses do not establish Golden quality. Both epoch checkpoints and the final adapter are saved locally. The complete downloaded training ZIP passed SHA-256 and ZIP CRC checks.
+
+The final adapter digest is `2ace6f366dfc35192385ade92d2548e57250ae6c419d07d4039e5257e49d5aa8`. It was reloaded from disk, generated five nonempty validation rewrites, and merged only after the unadapted base was exported. Both models were converted to Q8_0 with llama.cpp `bb692efaa43809dd8584fefddda42a54a9a50846`. Sizes and digests appear in the model card and private conversion manifest.
+
+Compatibility repairs are recorded, not hidden: unused torchao was removed; pyarrow 26.0.1 remained loaded after 23.0.1 was installed; Transformers 5 lacks the former config `_commit_hash` attribute, so the actual base revision was resolved from the sole local Hugging Face snapshot. Standard venv failed in Colab; virtualenv created the separate converter environment. Transformers 4.57.6 could not read the tokenizer format written by 5.23.0; conversion succeeded with 5.23.0. No failed attempt contributes a released model artifact.
+
+The public training aggregate is `review/v3_r1_training_summary.json`. The maintained primary notebook preserves the preflight and incorporates observed repairs; the exact historical executed cell source, differing runtime overlays and checksums are retained separately. A public notebook edit does not retrospectively change the recorded training source commit.
