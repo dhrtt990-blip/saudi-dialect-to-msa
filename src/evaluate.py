@@ -1,6 +1,6 @@
 """Score three systems on the golden test and write the comparison report.
 
-    python -m src.evaluate --golden data/golden_test.jsonl --out results
+    python -m src.evaluate --golden data/golden_v3_r1_candidate.jsonl --out results/v3_r1
 
   baseline  the untuned model with its own prompt and worked examples
   tuned     the fine-tuned model alone

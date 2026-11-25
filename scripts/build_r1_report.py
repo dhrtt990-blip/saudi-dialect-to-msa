@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from docx import Document
@@ -125,6 +126,7 @@ def build(root: Path, out: Path) -> None:
 
     heading('Training and saved model')
     config = read(run / 'training_config.json')
+    train_metrics = read(run / 'train_metrics.json')
     table(['Setting', 'Recorded value'], [
         ['Base model', export['base_model']], ['Base model revision', export['base_revision']],
         ['GPU', provenance['gpu']], ['Seed', provenance['seed']],
@@ -132,16 +134,19 @@ def build(root: Path, out: Path) -> None:
         ['Epochs and learning rate', f"{config['num_train_epochs']} / {config['learning_rate']}"],
         ['Maximum tokens and effective batch', '768 / 16'],
         ['Optimizer steps completed', provenance['global_step']],
-        ['Measured training seconds', round(provenance['elapsed_seconds'], 1)],
-        ['Peak allocated GPU bytes', provenance['peak_gpu_bytes']],
+        ['Trainer runtime seconds', round(train_metrics['train_runtime'], 1)],
+        ['Training and final save elapsed seconds', round(provenance['elapsed_seconds'], 1)],
+        ['Peak allocated GPU GiB', round(provenance['peak_gpu_bytes'] / 1024**3, 2)],
     ])
     para('Loss was restricted to assistant tokens. The run saved checkpoints, configuration, library versions, loss history and the final adapter in a distinct directory. An initial attempt stopped before training because Colab’s optional torchao 0.10.0 conflicted with PEFT. Removing that unused optional package allowed float16 LoRA training to proceed. The failed attempt remains in the evidence bundle.')
+    para('Recorded software: Python ' + provenance['python'] + '; ' + '; '.join(f"{name} {provenance['versions'][name]}" for name in ('torch', 'transformers', 'peft', 'trl')) + '. Loaded-module and installed-package versions are recorded separately in the provenance file after the environment repair.')
     para('The saved adapter was reloaded into the pinned base model and generated five nonempty validation rewrites. This verifies restoration and inference, not benchmark quality. The untuned and merged models were exported with the same converter revision and Q8_0 setting for the comparison.')
     para('Adapter SHA-256: ' + export['adapter_sha256'])
     history = read(run / 'train_log_history.json')
     training_points = [(x['step'], x['loss']) for x in history if 'step' in x and 'loss' in x]
     validation_points = [(x['step'], x['eval_loss']) for x in history if 'step' in x and 'eval_loss' in x]
     if training_points:
+        os.environ.setdefault('MPLCONFIGDIR', str(out.parent / '.mpl-cache'))
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt

@@ -1,9 +1,9 @@
 """Build the fine-tuning data and keep it apart from the golden test.
 
     python scripts/download_corpus.py
-    python -m src.data_prep --golden data/golden_test.jsonl \
+    python -m src.data_prep --golden data/golden_v3_r1_candidate.jsonl \
         --corpus-csv data/raw/multidialectal_travel_corpus.csv --corpus-limit 8000 \
-        --synthetic-n 2000 --out data/processed
+        --synthetic-n 2000 --out data/processed_v3_r1
 
 Sources
   corpus     the multidialectal parallel corpus (Almeman 2025, Zenodo 17776617): Saudi-MSA pairs.

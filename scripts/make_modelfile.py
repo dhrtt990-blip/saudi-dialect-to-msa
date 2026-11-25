@@ -1,10 +1,10 @@
 """Write an Ollama Modelfile for a GGUF file exported by the notebook, and check the prompt Ollama builds from it.
 
-    python scripts/make_modelfile.py --gguf models/qwen3-1.7b-base-q8_0.gguf --name d2m-qwen3-base --out Modelfile.base
-    ollama create d2m-qwen3-base -f Modelfile.base
-    python scripts/make_modelfile.py --gguf models/d2m-qwen3-1.7b-q8_0.gguf
-    ollama create d2m-qwen3-lora -f Modelfile
-    python scripts/make_modelfile.py --check d2m-qwen3-base d2m-qwen3-lora
+    python scripts/make_modelfile.py --gguf models/travel-v3-r1-qwen3-base-q8_0.gguf --name travel-v3-r1-base --out Modelfile.base
+    ollama create travel-v3-r1-base -f Modelfile.base
+    python scripts/make_modelfile.py --gguf models/travel-v3-r1-qwen3-1.7b-q8_0.gguf
+    ollama create travel-v3-r1-lora -f Modelfile
+    python scripts/make_modelfile.py --check travel-v3-r1-base travel-v3-r1-lora
 
 The Modelfile has no TEMPLATE line. Ollama then builds the prompt with the chat
 template stored inside the GGUF file, which is the template of the tokenizer the
@@ -49,7 +49,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.pipeline import DEFAULT_HOST  # noqa: E402
+from src.pipeline import DEFAULT_HOST, DEFAULT_TUNED_MODEL  # noqa: E402
 from src.prompts import build_messages, build_repair_messages  # noqa: E402
 
 # No repeat penalty: the model has to repeat most of its input, the Hugging Face generation the notebook compares
@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Write the Modelfile for an exported GGUF file, or check that Ollama builds a model's prompts in the training format.")
     p.add_argument("--gguf", help="path to the exported GGUF file")
     p.add_argument("--out", default="Modelfile")
-    p.add_argument("--name", default="d2m-qwen3-lora", help="the name the model will get in Ollama; only used in the hint printed at the end")
+    p.add_argument("--name", default=DEFAULT_TUNED_MODEL, help="the name the model will get in Ollama; only used in the hint printed at the end")
     p.add_argument("--check", nargs="+", metavar="MODEL", help="Ollama model names to check instead of writing a Modelfile")
     p.add_argument("--host", default=DEFAULT_HOST)
     args = p.parse_args(argv)

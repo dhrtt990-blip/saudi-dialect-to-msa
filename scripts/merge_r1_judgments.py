@@ -32,7 +32,9 @@ def merge(template: Path, a_path: Path, b_path: Path, out: Path) -> None:
     for key, original in truth.items():
         for rating in (a[key], b[key]):
             for field in ('source', 'reference', 'key_facts', 'output'):
-                if rating.get(field) != original.get(field):
+                # Excel on Windows rewrites line endings inside quoted multiline cells.
+                normalized = lambda text: (text or '').replace('\r\n', '\n').replace('\r', '\n')
+                if normalized(rating.get(field)) != normalized(original.get(field)):
                     raise ValueError(f'{key}: {field} changed; use the original blind sheet')
         row = {column: original.get(column, '') for column in JUDGMENT_COLUMNS}
         for suffix, rating in (('a', a[key]), ('b', b[key])):

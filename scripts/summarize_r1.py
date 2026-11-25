@@ -11,12 +11,30 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from src.common import sha256_file
-from src.evaluate import SYSTEMS
+from src.evaluate import HUMAN_ERRORS, SYSTEMS
 
 
 def sign_test(better: int, worse: int) -> float:
     n = better + worse
     return min(1.0, 2 * sum(math.comb(n, k) for k in range(min(better, worse) + 1)) / 2**n) if n else 1.0
+
+
+def public_score(score: dict) -> dict:
+    result = {k: score[k] for k in (
+        'n', 'released', 'withheld', 'no_output', 'repaired', 'auto_pass', 'correct',
+        'fully_judged', 'judged', 'released_with_fact_error', 'released_with_added_fact',
+        'key_facts', 'error_counts', 'chrf_mean')}
+    result['key_facts'] = dict(result['key_facts'])
+    result['error_counts'] = dict(result['error_counts'])
+    facts = result['key_facts']
+    if not facts['judged']:
+        for key in ('lost', 'lost_checker_reads', 'lost_outside_checker', 'lost_although_found_automatically', 'disputed'):
+            facts[key] = None
+    if not score['verdicts_judged']:
+        for key in HUMAN_ERRORS:
+            result['error_counts'][key] = None
+    result['human_judgment_status'] = 'complete' if score['fully_judged'] else 'partial' if score['verdicts_judged'] or facts['judged'] else 'pending'
+    return result
 
 
 def summarize(directory: Path) -> dict:
@@ -32,10 +50,7 @@ def summarize(directory: Path) -> dict:
         assert score['n'] == 100
         assert {r['id'] for r in score['per_example']} == {f't{i:03}' for i in range(1, 101)}
         prediction_hashes[name] = sha256_file(directory / f'predictions_{name}.jsonl')
-        systems[name] = {k: score[k] for k in (
-            'n', 'released', 'withheld', 'no_output', 'repaired', 'auto_pass', 'correct',
-            'fully_judged', 'judged', 'released_with_fact_error', 'released_with_added_fact',
-            'key_facts', 'error_counts', 'chrf_mean')}
+        systems[name] = public_score(score)
     needs = meta['needs']
     exact = needs['asked_exactly'] / needs['incomplete']
     needless = needs['needless_asks'] / needs['complete']
