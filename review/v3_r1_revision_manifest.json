@@ -1,0 +1,28 @@
+{
+  "revision": "V3-R1 technical correction candidate",
+  "status": "TECHNICALLY_REVISED_LEADER_AUTHORIZED_NOT_FROZEN",
+  "recorded_on": "2026-11-25",
+  "source": "data/golden_v3.jsonl",
+  "source_sha256": "09c1937ebac93056f1c33ef07037b157bc80e05361063474ef5e827dc73ccbbf",
+  "source_commit": "e45878709d9e179d82cf68c6f3fa8f693f7aa1af",
+  "candidate": "data/golden_v3_r1_candidate.jsonl",
+  "sha256": "e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6",
+  "rows": 100,
+  "changed_rows": 11,
+  "changed_field": "key_facts",
+  "key_fact_entries_before": 322,
+  "key_fact_entries_after": 335,
+  "missing_detail_rows": 40,
+  "original_11_case_list_available": false,
+  "selection_basis": "Independent prioritization of 11 substantive label issues from the current review; not claimed identical to the original handoff list.",
+  "authority": "Team leader explicitly authorized technical corrections; no fresh peer or instructor sign-off of candidate digest claimed.",
+  "prior_approval_preserved": true,
+  "training_and_evaluation": "not run",
+  "freeze": "not completed",
+  "remaining_review": [
+    "Original 11 case list remains unavailable.",
+    "t068 and t080 are separately documented lower-priority label-scope observations, not changed in this 11-row patch.",
+    "Two validator warning groups are intentional/documented; do not suppress.",
+    "Human semantic judgment remains mandatory."
+  ]
+}

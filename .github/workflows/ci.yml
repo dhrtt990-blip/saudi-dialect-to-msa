@@ -39,3 +39,7 @@ jobs:
         run: |
           python -m src.validate_golden data/golden_v3.jsonl
           python -m pytest -q tests/test_golden_v3_release.py
+      - name: Verify V3-R1 technical correction candidate
+        run: |
+          python -m src.validate_golden data/golden_v3_r1_candidate.jsonl
+          python -m pytest -q tests/test_golden_v3_r1_candidate.py
