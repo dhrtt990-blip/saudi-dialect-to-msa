@@ -16,6 +16,11 @@ and a second member has checked every row again. The file records both names.
 Step 3 writes data/golden_test.jsonl and data/golden_test_review.json (who
 reviewed, and how many rows differ from the draft). Nothing is written if the
 sheet does not validate. Only the Python standard library is needed.
+
+A sheet may carry two label columns, `key_facts` (one fact per line, worded as
+in the reference) and `missing` (date, destination, booking_reference). They are
+read when the sheet has them; a sheet without them imports as before. For the
+travel-desk draft pass `--draft data/golden_v3_draft.jsonl`.
 """
 from __future__ import annotations
 
@@ -44,6 +49,8 @@ COLUMNS = [
     ("source", "source — الرسالة باللهجة"),
     ("reference", "reference — الصياغة الفصحى"),
     ("must_keep", "must_keep — أسماء يجب أن تبقى (بينها فاصلة)"),
+    ("key_facts", "key_facts — الحقائق الأساسية (كل حقيقة في سطر، كما في الفصحى)"),
+    ("missing", "missing — تفصيل لازم غير موجود (date / destination / booking_reference)"),
     ("reviewed_by", "reviewed_by — المراجع"),
     ("confirmed_by", "confirmed_by — المتأكد"),
     ("notes", "notes — ملاحظات"),
@@ -51,6 +58,11 @@ COLUMNS = [
 NEEDED = ("id", "source", "reference", "must_keep", "reviewed_by", "confirmed_by")
 KNOWN = tuple(key for key, _ in COLUMNS)
 _NAME_SEPARATORS = re.compile(r"[،,;؛|\n\r]+")
+# A key fact may hold a number with a comma ("1,500") or alternatives ("تذكرتان | تذكرتين"). A line break, a semicolon,
+# an Arabic comma, or a comma followed by a space ends one.
+_FACT_SEPARATORS = re.compile(r"[;؛،\n\r]+|,\s+")
+_DETAIL_SEPARATORS = re.compile(r"[\s،,;؛|/]+")
+_MULTILINE = ("must_keep", "key_facts", "missing")
 # Invisible direction marks that a phone or a spreadsheet can leave in a cell (LRM, RLM, ALM, embeddings, isolates, BOM).
 _BIDI_MARKS = re.compile("[" + "".join(chr(c) for c in (0x200E, 0x200F, 0x061C, 0xFEFF, *range(0x202A, 0x202F), *range(0x2066, 0x206A))) + "]")
 # Excel writes a control character inside a cell as _xHHHH_; a line break typed in a cell is _x000D_ plus a newline.
@@ -71,10 +83,9 @@ def export_csv(rows: list[dict], path: str | Path) -> None:
         writer = csv.writer(fh)
         writer.writerow([header for _, header in COLUMNS])
         for row in rows:
-            writer.writerow([
-                row.get("id", ""), row.get("topic", ""), row.get("source", ""), row.get("reference", ""),
-                "، ".join(row.get("must_keep", [])), row.get("reviewed_by", ""), row.get("confirmed_by", ""), row.get("notes", ""),
-            ])
+            cells = dict(row, must_keep="، ".join(row.get("must_keep", [])), key_facts="\n".join(row.get("key_facts", [])),
+                         missing=", ".join(row.get("missing", [])))
+            writer.writerow([cells.get(key, "") for key, _ in COLUMNS])
 
 
 # --------------------------------------------------------------------------- #
@@ -200,6 +211,9 @@ def rows_from_table(table: list[list[str]]) -> list[dict]:
     if unknown:
         raise SheetError(f"column(s) not known: {', '.join(unknown)}. Only these are read: {', '.join(KNOWN)}. "
                          "Delete the extra column, or move its text into notes.")
+    if ("key_facts" in keys) != ("missing" in keys):
+        raise SheetError("the sheet has only one of the two label columns key_facts and missing. Keep both (an empty cell "
+                         "means \"none\"), or delete both.")
     repeated = sorted(k for k, count in Counter(k for k in keys if k).items() if count > 1)
     if repeated:
         raise SheetError(f"column name(s) used more than once: {', '.join(repeated)}. Keep one column for each name.")
@@ -214,8 +228,8 @@ def rows_from_table(table: list[list[str]]) -> list[dict]:
             if not key:
                 continue
             text = _BIDI_MARKS.sub("", cells[i] if i < len(cells) else "")
-            # Line breaks separate the names in must_keep, so they are kept there until the names are split.
-            row[key] = text.strip() if key == "must_keep" else " ".join(text.split())
+            # Line breaks separate the entries of the list columns, so they are kept there until the entries are split.
+            row[key] = text.strip() if key in _MULTILINE else " ".join(text.split())
         rows.append(row)
     return rows
 
@@ -238,6 +252,9 @@ def build_golden(sheet_rows: list[dict], draft_by_id: dict[str, dict]) -> list[d
             "reviewed_by": row.get("reviewed_by", ""),
             "confirmed_by": row.get("confirmed_by", ""),
         }
+        if "key_facts" in row or "missing" in row:  # the sheet has the label columns: an empty cell is a label too
+            item["key_facts"] = [" ".join(fact.split()) for fact in _FACT_SEPARATORS.split(row.get("key_facts", "")) if fact.strip()]
+            item["missing"] = [detail.lower() for detail in _DETAIL_SEPARATORS.split(row.get("missing", "")) if detail]
         if item["source"] and normalize_for_dedup(item["source"]) == normalize_for_dedup(item["reference"]):
             item["control"] = True  # already formal: the right answer is the message itself
         # A hint that the draft carries for the reviewers is not the team's note: a note is kept only if the team wrote or changed it.
@@ -257,7 +274,9 @@ def change_summary(golden: list[dict], draft_by_id: dict[str, dict]) -> dict:
     source_changed = [g["id"] for g in from_draft if not same(g["source"], draft_by_id[g["id"]]["source"])]
     reference_changed = [g["id"] for g in from_draft if not same(g["reference"], draft_by_id[g["id"]]["reference"])]
     names_changed = [g["id"] for g in from_draft if g["must_keep"] != draft_by_id[g["id"]].get("must_keep", [])]
-    touched = set(source_changed) | set(reference_changed) | set(names_changed)
+    labels_changed = [g["id"] for g in from_draft if "key_facts" in g and (
+        g["key_facts"] != draft_by_id[g["id"]].get("key_facts", []) or sorted(g["missing"]) != sorted(draft_by_id[g["id"]].get("missing", [])))]
+    touched = set(source_changed) | set(reference_changed) | set(names_changed) | set(labels_changed)
     return {
         "rows": len(golden),
         "rows_from_draft": len(from_draft),
@@ -266,6 +285,7 @@ def change_summary(golden: list[dict], draft_by_id: dict[str, dict]) -> dict:
         "sources_changed": len(source_changed),
         "references_changed": len(reference_changed),
         "must_keep_changed": len(names_changed),
+        "labels_changed": len(labels_changed),
         "rows_unchanged_from_draft": len(from_draft) - len(touched),
         "reviewed_by": dict(Counter(g["reviewed_by"] for g in golden)),
         "confirmed_by": dict(Counter(g["confirmed_by"] for g in golden)),

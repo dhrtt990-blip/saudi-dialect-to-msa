@@ -9,11 +9,16 @@ A "fact" is a piece of the message that a rewrite must carry over unchanged:
     email    name@example.com
     url      https://example.com/x
     latin    words written in Latin script (product names, codes)
+    day      weekdays and relative days written in words: الخميس, غداً
+             ("بكره" and "غداً" are the same day; the list is in src/gazetteer.py)
+    month    months by name: مارس, رمضان
+    place    place names in the list of src/gazetteer.py: دبي, جدة
 
 The checker compares the facts of the original with the facts of the rewrite as
 multisets. It is deliberately strict: when in doubt it reports a difference,
 because a wrongly withheld message costs a manual rewrite, while a wrongly
-released one carries a wrong appointment or amount.
+released one carries a wrong appointment or amount. Days, months and places
+are compared by presence only: naming الخميس twice and then once is not a difference.
 
 Known limits (reported in the README and tested by the safety check):
   * numbers written as words ("خمسة") are not facts, so a changed number word
@@ -25,7 +30,11 @@ Known limits (reported in the README and tested by the safety check):
   * a time written with a dot ("10.30") is a number, so rewriting it as "10:30"
     is reported as a change;
   * "15%" rewritten as "15 بالمئة" is reported as a change;
-  * proper names are checked only when the caller lists them in `must_keep`.
+  * proper names are checked only when the caller lists them in `must_keep`;
+  * a place that is not in the list is not a fact, so its loss is not caught;
+  * a listed word is read as a day or a place whatever it means in the sentence
+    ("الاثنين" for "both of them", "الخبر" for "the news"), so a correct rewrite
+    that words it differently is reported as a change.
 """
 from __future__ import annotations
 
@@ -35,6 +44,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from .common import strip_marks
+from .gazetteer import find_days, find_months, find_places
 
 _EMAIL = r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+"
 _URL = r"(?:https?://|www\.)[^\s؀-ۿ]+"
@@ -52,6 +62,7 @@ _SCANNER = re.compile(
     f"(?P<email>{_EMAIL})|(?P<url>{_URL})|(?P<time>{_TIME})|(?P<date>{_DATE})|(?P<number>{_NUMBER})|(?P<latin>{_LATIN})"
 )
 _KINDS = ("email", "url", "time", "date", "number", "latin")
+WORD_KINDS = ("day", "month", "place")  # found by word list and compared by presence, not by count
 
 
 @dataclass(frozen=True)
@@ -84,7 +95,8 @@ def _canonical(kind: str, raw: str) -> str:
 
 
 def extract_facts(text: str) -> list[Fact]:
-    """All facts in `text`, in order of appearance."""
+    """All facts in `text`: those written in digits or Latin letters in order of
+    appearance, then the days, the months and the places (each in its formal spelling)."""
     clean = strip_marks(text)
     facts = []
     for m in _SCANNER.finditer(clean):
@@ -93,6 +105,9 @@ def extract_facts(text: str) -> list[Fact]:
         if kind == "url":
             raw = raw.rstrip(_URL_TAIL)
         facts.append(Fact(kind, _canonical(kind, raw), raw.strip()))
+    facts += [Fact("day", name, name) for name in find_days(clean)]
+    facts += [Fact("month", name, name) for name in find_months(clean)]
+    facts += [Fact("place", name, name) for name in find_places(clean)]
     return facts
 
 
@@ -190,6 +205,15 @@ def _as_dicts(counter: Counter, raw_by_key: dict) -> list[dict]:
     return out
 
 
+def _count(facts: list[Fact]) -> Counter:
+    """How often each fact occurs. A day, a month or a place counts once however often it is named."""
+    counts = Counter(f.key() for f in facts)
+    for key in counts:
+        if key[0] in WORD_KINDS:
+            counts[key] = 1
+    return counts
+
+
 def compare_facts(source: str, rewrite: str, must_keep: tuple[str, ...] | list[str] = ()) -> FactReport:
     """Compare the facts of `source` and `rewrite`.
 
@@ -197,7 +221,7 @@ def compare_facts(source: str, rewrite: str, must_keep: tuple[str, ...] | list[s
     rewrite as whole words.
     """
     src, out = extract_facts(source), extract_facts(rewrite)
-    src_count, out_count = Counter(f.key() for f in src), Counter(f.key() for f in out)
+    src_count, out_count = _count(src), _count(out)
     src_raw = {f.key(): f.raw for f in src}
     out_raw = {f.key(): f.raw for f in out}
     missing = src_count - out_count
@@ -210,3 +234,42 @@ def compare_facts(source: str, rewrite: str, must_keep: tuple[str, ...] | list[s
         must_keep_missing=lost,
         source_facts=len(src),
     )
+
+
+# --------------------------------------------------------------------------- #
+# Labelled key facts (golden test)
+# --------------------------------------------------------------------------- #
+def _alternatives(label: str) -> list[str]:
+    """A key fact may give several accepted wordings separated by "|": "تذكرتان | تذكرتين"."""
+    return [part.strip() for part in label.split("|") if part.strip()]
+
+
+def fact_present(text: str, label: str) -> bool:
+    """True if a labelled key fact is found in `text`.
+
+    A label that holds something the checker reads (a number, a date, a code,
+    a day, a listed place) is found when all of that is in the text; the other
+    words of the label are not compared. Any other label is found when it
+    appears as whole words. This is a first look only: it cannot tell that a
+    fact is still there in other words, nor that it is there but now says
+    something else. The two raters decide."""
+    have = _count(extract_facts(text))
+    for wording in _alternatives(label):
+        wanted = _count(extract_facts(wording))
+        if wanted:
+            if not wanted - have:
+                return True
+        elif contains_name(text, wording):
+            return True
+    return False
+
+
+def checker_reads(label: str, must_keep: tuple[str, ...] | list[str] = ()) -> bool:
+    """True if the fact checker compares this key fact: it holds a number, date,
+    time, code, day, month or listed place, or it is one of the names in `must_keep`."""
+    for wording in _alternatives(label):
+        if extract_facts(wording):
+            return True
+        if any(name.strip() and (contains_name(wording, name) or contains_name(name, wording)) for name in must_keep):
+            return True
+    return False
