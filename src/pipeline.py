@@ -32,8 +32,8 @@ DEFAULT_HOST = "http://localhost:11434"
 # The untuned model, converted with the same script and 8-bit setting as the tuned one (README, step 5).
 # The `qwen3:1.7b` build in the Ollama library is a 4-bit file; using it as the baseline would mix
 # quantisation with fine-tuning.
-DEFAULT_BASE_MODEL = "d2m-qwen3-base"
-DEFAULT_TUNED_MODEL = "d2m-qwen3-lora"
+DEFAULT_BASE_MODEL = "travel-v3-r1-base"
+DEFAULT_TUNED_MODEL = "travel-v3-r1-lora"
 
 STATUS_OK = "OK"
 STATUS_REPAIRED = "OK_AFTER_REPAIR"

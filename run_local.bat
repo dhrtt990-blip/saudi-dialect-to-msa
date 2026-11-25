@@ -46,9 +46,9 @@ echo [4/6] Running the unit tests ...
 echo [4/6] pytest exit code: %ERRORLEVEL% >> "%LOG%"
 
 echo [5/6] Dry runs with the mock client (no model needed) ...
-".venv\Scripts\python.exe" -m src.evaluate --client mock --golden data\golden_test.jsonl --min-rows 100 >> "%LOG%" 2>&1
+".venv\Scripts\python.exe" -m src.evaluate --client mock --golden data\golden_v3_r1_candidate.jsonl --min-rows 100 >> "%LOG%" 2>&1
 echo [5/6] evaluate exit code: %ERRORLEVEL% >> "%LOG%"
-".venv\Scripts\python.exe" -m src.safety_check --client mock >> "%LOG%" 2>&1
+".venv\Scripts\python.exe" -m src.safety_check --inputs data\safety_travel_v3_r1.jsonl --client mock >> "%LOG%" 2>&1
 echo [5/6] safety_check exit code: %ERRORLEVEL% >> "%LOG%"
 
 echo [6/6] Checking Ollama ...
@@ -69,16 +69,10 @@ echo [6/6] installed models: >> "%LOG%"
 ollama list >> "%LOG%" 2>&1
 
 echo.
-echo The base model qwen3:1.7b is needed for a real smoke test (a download of roughly 1-2 GB).
-choice /C YN /M "Download qwen3:1.7b now and run the base model on the 10 template sentences"
-if errorlevel 2 goto :finish
-echo [6/6] pulling qwen3:1.7b >> "%LOG%"
-ollama pull qwen3:1.7b
-echo [6/6] pull exit code: %ERRORLEVEL% >> "%LOG%"
-if errorlevel 1 goto :finish
-echo        Running the untuned model on the template sentences (smoke test, not a result) ...
-".venv\Scripts\python.exe" -m src.evaluate --systems baseline --base-model qwen3:1.7b --golden data\golden_test.jsonl --min-rows 100 --out results\smoke_base_model >> "%LOG%" 2>&1
-echo [6/6] smoke test exit code: %ERRORLEVEL% >> "%LOG%"
+echo Use the matched V3-R1 Q8_0 base and tuned GGUF files from the private team bundle.
+echo This launcher does not download historical V2.2 or differently quantized models.
+echo Create travel-v3-r1-base and travel-v3-r1-lora with scripts\make_modelfile.py.
+echo Then open the app using the command below.
 
 :finish
 echo ==== finished %DATE% %TIME% ==== >> "%LOG%"

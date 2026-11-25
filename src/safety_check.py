@@ -1,6 +1,6 @@
 """Run the adversarial inputs through the full pipeline and report what happened.
 
-    python -m src.safety_check --inputs data/safety_inputs.jsonl --out results
+    python -m src.safety_check --inputs data/safety_travel_v3_r1.jsonl --out results/v3_r1
 
 One JSON object per line:
 

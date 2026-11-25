@@ -1,0 +1,42 @@
+{
+  "created_utc": "2026-11-25T19:52:41+00:00",
+  "seed": 13,
+  "golden_file": "data/golden_v3_r1_candidate.jsonl",
+  "golden_sha256": "e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6",
+  "golden_rows": 100,
+  "corpus_file_sha256": "ceab0017eb85bdf4b7435ed59cdce5f2718a41e59d675f32ca4338e12e6aacc8",
+  "corpus_labels_stripped": 50010,
+  "loaded": {
+    "corpus_rows_in_file": 50010,
+    "corpus": 8000,
+    "synthetic": 2000
+  },
+  "dropped_from_corpus": {
+    "duplicate": 25063,
+    "fact_mismatch": 335,
+    "length": 33,
+    "identical_over_cap": 434
+  },
+  "dropped_in_cleaning": {
+    "duplicate": 299,
+    "identical_over_cap": 24
+  },
+  "removed_for_golden_overlap": 107,
+  "removed_for_shared_fact": 0,
+  "train": 8613,
+  "val": 957,
+  "train_sha256": "067e225812ccaf2ece1797fcb23f10e27e1d679d85255009813f6751b52d37e8",
+  "val_sha256": "ca1fc28d10b7199624bb4d0838fd8ebc92d44bc98f346d5b4f45bd34dfe4844f",
+  "by_source": {
+    "corpus": 7876,
+    "synthetic": 1694
+  },
+  "pairs_with_facts": 2296,
+  "overlap_remaining_after_filter": 0,
+  "thresholds": {
+    "near_duplicate": 0.8,
+    "shared_content": 0.6
+  },
+  "full_report_sha256": "9fd0ca9254330c770bb718e546d1f863636a29d801a0e4f2169ad00388e7f983",
+  "detail_location": "Private team bundle: data/processed_v3_r1/prep_report.json"
+}

@@ -1,5 +1,14 @@
 # Dataset Card — Saudi Dialect to MSA Rewriter
 
+## Current execution checkpoint
+
+Golden V3-R1 is the active evaluation-only benchmark: 100 messages, 335 labelled facts and 40 incomplete requests, SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Actual preparation with 43 travel-desk templates produced 8,613 training and 957 validation examples. The files match between Mac and Colab; a separate reread found zero remaining Golden text or distinctive-fact overlap under the documented thresholds. Counts and digests are in `review/v3_r1_preparation_summary.json`. Detailed derived text stays in the private team bundle.
+
+The licence discrepancy was rechecked against the live Zenodo API and its attached README on 25 November 2026. It persists: metadata says CC BY 4.0, the attached README says CC BY-NC without a version and requires compliance with unidentified upstream API terms. The Qwen3 base model reports Apache 2.0; that does not resolve the corpus discrepancy. See `review/v3_r1_licence_check.json`. No new clearance to publish derived weights is claimed.
+
+The sections below preserve earlier dataset and approval history. Their pending preparation statements and V2.2 counts are historical; they do not replace the measured R1 checkpoint above.
+
+
 ## Scope and provenance
 
 The project rewrites short Saudi-dialect messages into Modern Standard Arabic while preserving factual spans. All golden examples are separate from the training split. The final golden set was **AI-drafted and team-reviewed**, not originally written by four people from scratch. The team leader attests that all 100 items were approved after four members performed 25 reciprocal peer reviews each. All four reciprocal pairings were confirmed directly by the team leader, who states the reviews and approvals occurred in his presence; see `docs/GOLDEN_TEST_TEAM_APPROVAL.md`.
@@ -9,7 +18,7 @@ The project rewrites short Saudi-dialect messages into Modern Standard Arabic wh
 | Data | Scope | Use | Status |
 |---|---|---|---|
 | Khalid Almeman, multidialectal parallel Arabic corpus, [Zenodo 17776617](https://doi.org/10.5281/zenodo.17776617) | 50,010 short travel-related rows; use Saudi Dialect + Modern Standard Arabic columns | Candidate supervised training/validation | Source identified; final sampled subset and split counts must come from a real processing run |
-| `src/data_prep.py` synthetic templates | 31 templates filled with invented names, amounts, dates, times, numbers, identifiers | Candidate training/validation | Generator coded; actual build/report generated during preparation |
+| `src/data_prep.py` synthetic templates | 31 historical templates filled with invented names, amounts, dates, times, numbers, identifiers | Candidate training/validation | Generator coded; actual build/report generated during preparation |
 | `data/golden_test.jsonl` | 100 reviewed messages across nine service/administrative topic groups | **Evaluation only** | Team approved per leader attestation; validator passed |
 
 **Corpus licence discrepancy:** The Zenodo licence metadata and corresponding paper report CC BY 4.0, while a README inside the distribution states non-commercial reuse (CC BY-NC) and warns about upstream API terms. The project takes a cautious, non-commercial course-use approach and does not redistribute the raw corpus, processed derived lines, or adapter until the terms are clarified. The upstream source is acknowledged; this dataset card does not claim legal clearance to distribute derived weights.

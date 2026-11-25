@@ -26,3 +26,8 @@ logs/
 
 # Corpus-derived training files are rebuilt by `python -m src.data_prep`; the report next to them is committed.
 data/processed/*.jsonl
+data/processed_v3_r1/*.jsonl
+data/processed_v3_r1/prep_report.json
+# Detailed predictions and blind rating sheets belong in the private team bundle.
+results/v3_r1/
+evidence/v3_r1/
