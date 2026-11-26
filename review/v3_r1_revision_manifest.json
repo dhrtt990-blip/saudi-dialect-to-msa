@@ -1,6 +1,6 @@
 {
   "revision": "V3-R1 technical correction candidate",
-  "status": "FROZEN_ACTIVE",
+  "status": "FROZEN_SUPERSEDED",
   "recorded_on": "2026-11-25",
   "source": "data/golden_v3.jsonl",
   "source_sha256": "09c1937ebac93056f1c33ef07037b157bc80e05361063474ef5e827dc73ccbbf",
@@ -18,7 +18,7 @@
   "authority": "Team leader explicitly authorized the technical corrections and on 25 November 2026 explicitly authorized final freeze and approval of V3-R1 for the team's next training phase. This is a leader authorization record, not new peer signatures or exact-hash instructor sign-off.",
   "prior_approval_preserved": true,
   "training_and_evaluation": "not run",
-  "freeze": "Active on main after PR #4 merge; frozen data commit remains unchanged.",
+  "freeze": "Historical freeze retained; V3-R2 is the active benchmark.",
   "remaining_review": [
     "Run data preparation and verify no remaining overlap with the frozen V3-R1 data before training.",
     "Evaluate missing-information disagreements on frozen labels; reconciliation distinguishes the two 11-case lists but does not prove that the checker disagreements were fixed.",
@@ -33,5 +33,7 @@
     "basis": "Explicit instruction from the team leader in the project conversation",
     "new_peer_signatures": false,
     "new_instructor_exact_hash_signoff": false
-  }
+  },
+  "superseded_by": "data/golden_v3_r2.jsonl",
+  "superseded_on": "2026-11-27"
 }

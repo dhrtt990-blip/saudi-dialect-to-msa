@@ -1,8 +1,8 @@
 # Saudi Dialect to Modern Standard Arabic (MSA) Rewriter
 
-## CURRENT TEAM WORK — Travel agency V3-R1 (FROZEN_ACTIVE)
+## CURRENT TEAM WORK — Travel agency V3-R2 (FROZEN_ACTIVE)
 
-**Use only the frozen V3-R1 benchmark for new travel-desk work.** [Start here](docs/START_TRAVEL_V3_R1.md) and [training notebook](notebooks/train_qwen3_lora_colab.ipynb). The active file is [data/golden_v3_r1_candidate.jsonl](data/golden_v3_r1_candidate.jsonl) (filename retained for traceability). PR #4 activated it on main; freeze commit `51127bdfb65a19adb763501d139515dd4479ff27`; SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Team leader final freeze authorization is recorded. Run the notebook preflight and require zero remaining training/validation overlap before training. V2.2 and earlier V3 snapshots are historical only; never use their results as V3-R1 results. No new real-model results are claimed.
+**Use only the frozen V3-R2 benchmark for new evaluation.** [Start here](docs/START_TRAVEL_V3_R2.md) and [current notebook](notebooks/train_qwen3_lora_colab.ipynb). [Active dataset](data/golden_v3_r2.jsonl), SHA-256 `415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76`, freeze commit `31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71`. Team approval and final leader authorization are recorded. Earlier datasets and results are historical; do not transfer scores or judgments without verification. Run the preflight and verify data isolation before any training or final evaluation.
 
 **KAUST Academy — NLP Applications (2026)**  
 **Project:** Saudi Dialect to Modern Standard Arabic Rewriting with a Fact-Preservation Check

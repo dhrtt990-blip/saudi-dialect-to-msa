@@ -43,3 +43,7 @@ A separate, AI-assisted, team-reviewed travel benchmark contains 100 messages, 3
 ## V3-R1 active freeze — 25 November 2026
 
 The active evaluation-only release is [data/golden_v3_r1_candidate.jsonl](../data/golden_v3_r1_candidate.jsonl), 100 records, 335 fact-label entries, 40 missing-detail rows. Its filename is retained for reproducibility. Freeze commit `51127bdfb65a19adb763501d139515dd4479ff27`, SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Activated by PR #4 and final freeze authorized by the team leader. Actual processed split counts and overlap outcome are not yet established; require the V3-R1 prep report before training. See [start instructions](START_TRAVEL_V3_R1.md). Historical V2.2 and V3 remain unchanged. No new real-model results or licence clearance are claimed.
+
+## V3-R2 active evaluation benchmark — 27 November 2026
+
+The active benchmark is `data/golden_v3_r2.jsonl` with SHA-256 `415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76` and freeze commit `31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71`. Team-approved contextual labels (335 total, 274 improved) preserve the 100 sources and references. Earlier versions are historical. See [current instructions](START_TRAVEL_V3_R2.md). Actual experiment lineage and human judgments must be verified separately.

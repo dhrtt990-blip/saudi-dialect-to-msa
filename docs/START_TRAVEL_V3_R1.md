@@ -1,3 +1,7 @@
+# Historical V3-R1 — superseded
+
+**Do not use for new evaluation.** V3-R2 is active; [start here](START_TRAVEL_V3_R2.md). The following is the historical activation record.
+
 # Start here — travel agency V3-R1 only
 
 **ACTIVE / FROZEN — 25 November 2026.** PR #4 was merged into main; the team leader has explicitly authorized final freeze and the next training phase. The data is evaluation-only. Training may start only after the preflight and actual data-preparation overlap checks succeed.

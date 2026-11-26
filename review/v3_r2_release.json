@@ -1,6 +1,6 @@
 {
   "release": "V3-R2",
-  "status": "TEAM_APPROVED_PENDING_CHECKS",
+  "status": "FROZEN_ACTIVE",
   "recorded_on": "2026-11-27",
   "benchmark": "data/golden_v3_r2.jsonl",
   "sha256": "415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76",
@@ -18,7 +18,7 @@
   },
   "provenance": "Original sources, references, review and confirmation names, and missing-detail labels are preserved. Initial drafts were prepared with generative tools, then reviewed and confirmed by team members. The optional row-level draft-origin field was removed at the leader's request; this is a metadata layout change, not a change of authorship. Original row-level provenance is preserved in the frozen V3-R1 file.",
   "evaluation": "Previous predictions and judgments remain historical until re-linked and verified; 67 disputes separately pending.",
-  "freeze": "Not active until validation and activation after merge.",
+  "freeze": "Frozen on main; approved by the team leader for the next evaluation phase. Earlier versions are historical.",
   "metadata_revision": {
     "date": "2026-11-27",
     "previous_digest": "5b6de8add8fbd466316fa9dfc230d96af1b48d4d4278f8b5a16ccdbd71712275",
@@ -27,5 +27,16 @@
     "affected_rows": 100,
     "other_fields_changed": 0,
     "source_record": "data/golden_v3_r1_candidate.jsonl"
+  },
+  "freeze_commit": "31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71",
+  "final_authorization": {
+    "date": "2026-11-27",
+    "basis": "Team leader confirmed team approval and explicitly authorized confirmation and freeze in the project conversation.",
+    "validated_head": "f9715a6eaca7f6ba12b082ee1f4b58d17161a33d",
+    "validation_run": 45911404302,
+    "unit_tests_passed": 273,
+    "validation_errors": 0,
+    "documented_warnings": 2,
+    "new_instructor_exact_digest_approval": false
   }
 }
