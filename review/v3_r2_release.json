@@ -1,0 +1,22 @@
+{
+  "release": "V3-R2",
+  "status": "TEAM_APPROVED_PENDING_CHECKS",
+  "recorded_on": "2026-11-27",
+  "benchmark": "data/golden_v3_r2.jsonl",
+  "sha256": "5b6de8add8fbd466316fa9dfc230d96af1b48d4d4278f8b5a16ccdbd71712275",
+  "previous": "data/golden_v3_r1_candidate.jsonl",
+  "previous_sha256": "e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6",
+  "previous_commit": "66d26070ba6b98ca3356e39914282bfc72326c76",
+  "rows": 100,
+  "key_fact_entries": 335,
+  "changed_rows": 96,
+  "changed_labels": 274,
+  "missing_detail_rows": 40,
+  "approval": {
+    "basis": "Team leader confirmed that the team approved the contextual label corrections on 27 November 2026.",
+    "scope": "Exact previously supplied contextual correction package; no new individual signatures or instructor approval of this digest asserted."
+  },
+  "provenance": "Original source, reference, attribution and all fields except key_facts preserved.",
+  "evaluation": "Previous predictions and judgments remain historical until re-linked and verified; 67 disputes separately pending.",
+  "freeze": "Not active until validation and activation after merge."
+}
