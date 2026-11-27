@@ -9,7 +9,8 @@ from src.validate_golden import validate_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def test_golden_release_has_complete_and_distinct_roster():
+def test_golden_release_has_complete_and_distinct_roster(historical_snapshot):
+    ROOT = historical_snapshot
     rows = read_jsonl(ROOT / "data/golden_test.jsonl")
     assert len(rows) == 100
     assert [x["id"] for x in rows] == [f"g{i:03d}" for i in range(1, 101)]
@@ -19,7 +20,8 @@ def test_golden_release_has_complete_and_distinct_roster():
         assert x["reviewed_by"] != x["confirmed_by"]
         assert x["drafted_by"] == "ai_assistant"
 
-def test_golden_sha256_and_validation():
+def test_golden_sha256_and_validation(historical_snapshot):
+    ROOT = historical_snapshot
     data = (ROOT / "data/golden_test.jsonl").read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     assert (ROOT / "data/golden_test.sha256").read_text().split()[0] == digest
@@ -30,7 +32,8 @@ def test_golden_sha256_and_validation():
     assert not errors
     assert len(warnings) == 1
 
-def test_g032_reference_follows_recorded_canonical_source():
+def test_g032_reference_follows_recorded_canonical_source(historical_snapshot):
+    ROOT = historical_snapshot
     rows = read_jsonl(ROOT / "data/golden_test.jsonl")
     row = next(x for x in rows if x["id"] == "g032")
     assert "قلتم:" in row["reference"]

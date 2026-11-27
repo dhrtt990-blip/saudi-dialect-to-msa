@@ -1,6 +1,6 @@
 # Start here — travel agency V3-R2
 
-**FROZEN_ACTIVE — 27 November 2026.** The team approved contextual corrections and the team leader authorized final freeze. PR #6 merged the verified dataset. Use the frozen V3-R2 evaluation benchmark only; older versions are historical.
+**FROZEN_ACTIVE — 27 November 2026.** The team approved contextual corrections and the team leader authorized final freeze. PR #6 merged the verified dataset. Use the frozen V3-R2 evaluation benchmark only; older versions are historical and are no longer present in the working data directory. They are recoverable only from [the preserved Git snapshot](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/tree/bb4b3e358969bceae47fc6369d8a46c31115abaa). Do not restore or use them for new experiments.
 
 - Benchmark: `data/golden_v3_r2.jsonl`.
 - Freeze commit: `31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71`.

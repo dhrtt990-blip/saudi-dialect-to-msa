@@ -5,8 +5,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def test_r2_context_revision():
-    old = (ROOT / "data/golden_v3_r1_candidate.jsonl").read_bytes()
+def test_r2_context_revision(historical_snapshot):
+    old = (historical_snapshot / "data/golden_v3_r1_candidate.jsonl").read_bytes()
     new = (ROOT / "data/golden_v3_r2.jsonl").read_bytes()
     record = json.loads((ROOT / "review/v3_r2_release.json").read_text(encoding="utf-8"))
     assert hashlib.sha256(old).hexdigest() == "e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6"

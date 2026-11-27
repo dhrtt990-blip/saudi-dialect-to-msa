@@ -18,7 +18,13 @@ from src.data_prep import GoldenIndex, generate_synthetic, remove_golden_overlap
 from src.prompts import FEW_SHOT_EXAMPLES
 from src.validate_golden import validate_rows
 
-DRAFT = "data/golden_draft_ai.jsonl"
+DRAFT = None
+
+
+@pytest.fixture(scope="module", autouse=True)
+def historical_draft_fixture(historical_snapshot):
+    global DRAFT
+    DRAFT = str(historical_snapshot / "data/golden_draft_ai.jsonl")
 
 
 def load_script(name):

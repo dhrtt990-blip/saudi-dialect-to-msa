@@ -105,9 +105,10 @@ def test_warnings_for_dialect_in_reference_and_low_fact_share():
     assert any("still contains dialect" in w for w in warnings) and any("only 0%" in w for w in warnings)
 
 
-def test_shipped_template_validates_as_a_template(capsys):
-    assert validate_main(["data/golden_test_template.jsonl", "--min-rows", "10", "--allow-unreviewed"]) == 0
-    assert validate_main(["data/golden_test_template.jsonl"]) == 1  # 10 rows, reviewers NO_REVIEWER: not a real golden test
+def test_shipped_template_validates_as_a_template(capsys, historical_snapshot):
+    template = str(historical_snapshot / "data/golden_test_template.jsonl")
+    assert validate_main([template, "--min-rows", "10", "--allow-unreviewed"]) == 0
+    assert validate_main([template]) == 1  # 10 rows, reviewers NO_REVIEWER: not a real golden test
     assert "ERROR" in capsys.readouterr().out
 
 

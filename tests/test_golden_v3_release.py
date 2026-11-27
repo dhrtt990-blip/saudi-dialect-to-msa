@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 NAMES = ["Abdulrahman Mastour Alharthi","Yasser Mansour Alhajlah","Mohammed Adeeb Alrashdi","Musaad Obaied Saad Alqahtani"]
 PAIRS = [1, 0, 3, 2]
 
-def test_v3_release_integrity_and_review():
+def test_v3_release_integrity_and_review(historical_snapshot):
+    ROOT = historical_snapshot
     path = ROOT / "data/golden_v3.jsonl"
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
     m = json.loads((ROOT / "GOLDEN_V3_RELEASE_MANIFEST.json").read_text())

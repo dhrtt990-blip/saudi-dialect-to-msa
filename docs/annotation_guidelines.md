@@ -1,3 +1,7 @@
+# Current release notice
+
+The frozen V3-R2 file is the only current Golden Test. The older workflow below is historical and its inputs exist in [the preserved snapshot](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/tree/bb4b3e358969bceae47fc6369d8a46c31115abaa), not the current checkout. Do not regenerate or overwrite the active dataset. See [current instructions](START_TRAVEL_V3_R2.md).
+
 # دليل مراجعة المجموعة الذهبية والحكم على النواتج
 
 هذا الدليل يُتَّفق عليه قبل بدء المراجعة. أي تعديل عليه بعد بدء التقييم يُسجَّل في المستودع مع سببه.

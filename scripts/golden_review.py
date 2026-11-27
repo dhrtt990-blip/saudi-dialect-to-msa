@@ -1,26 +1,8 @@
-"""Review sheet for the golden test.
+"""Review sheet utilities for explicitly supplied future drafts.
 
-The 100 messages in data/golden_draft_ai.jsonl were drafted with an AI assistant.
-They become the golden test only after one team member has corrected every row
-and a second member has checked every row again. The file records both names.
-
-    # 1. make the sheet (skip this if the team already has it)
-    python scripts/golden_review.py export data/golden_draft_ai.jsonl golden_review.csv
-
-    # 2. first member: correct `source` and `reference` where needed, then write your name in `reviewed_by`
-    #    second member: read every row again, fix what is left, then write your name in `confirmed_by`
-
-    # 3. turn the reviewed sheet (.xlsx or .csv) into the golden test and validate it
-    python scripts/golden_review.py import golden_review.xlsx
-
-Step 3 writes data/golden_test.jsonl and data/golden_test_review.json (who
-reviewed, and how many rows differ from the draft). Nothing is written if the
-sheet does not validate. Only the Python standard library is needed.
-
-A sheet may carry two label columns, `key_facts` (one fact per line, worded as
-in the reference) and `missing` (date, destination, booking_reference). They are
-read when the sheet has them; a sheet without them imports as before. For the
-travel-desk draft pass `--draft data/golden_v3_draft.jsonl`.
+The active V3-R2 benchmark is frozen; do not regenerate or overwrite it.
+The historical review workflow and its inputs are preserved in Git commit bb4b3e358969bceae47fc6369d8a46c31115abaa.
+Use explicit draft and output paths for a separate prospective revision.
 """
 from __future__ import annotations
 
@@ -339,7 +321,7 @@ def cmd_import(args: argparse.Namespace) -> int:
     if draft_by_id and not summary["changed_ids"] and not summary["rows_added_by_team"]:
         print("NOTE: no row differs from the AI draft. If the reviewers found nothing to correct, say so in the dataset card; "
               "otherwise check that this is the reviewed sheet.")
-    print("next: git add data/golden_test.jsonl data/golden_test_review.json && git commit, before any training run")
+    print("Review the proposed output and its report; do not overwrite the active frozen release.")
     return 0
 
 
@@ -352,8 +334,8 @@ def main(argv: list[str] | None = None) -> int:
     exp.set_defaults(run=cmd_export)
     imp = sub.add_parser("import", help="reviewed sheet (.xlsx or .csv) -> golden test JSONL")
     imp.add_argument("sheet")
-    imp.add_argument("--draft", default=str(ROOT / "data" / "golden_draft_ai.jsonl"))
-    imp.add_argument("--out", default=str(ROOT / "data" / "golden_test.jsonl"))
+    imp.add_argument("--draft", default=str(ROOT / "data" / "new_review_draft.jsonl"))
+    imp.add_argument("--out", required=True)
     imp.add_argument("--min-rows", type=int, default=100)
     imp.set_defaults(run=cmd_import)
     args = parser.parse_args(argv)
