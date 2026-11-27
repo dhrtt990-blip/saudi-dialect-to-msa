@@ -2,7 +2,7 @@
 
 ## CURRENT TEAM WORK — Travel agency V3-R2 (FROZEN_ACTIVE)
 
-**Use only the frozen V3-R2 benchmark for new evaluation.** [Start here](docs/START_TRAVEL_V3_R2.md) and [current notebook](notebooks/train_qwen3_lora_colab.ipynb). [Active dataset](data/golden_v3_r2.jsonl), SHA-256 `415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76`, freeze commit `31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71`. Team approval and final leader authorization are recorded. Earlier datasets and results are historical; do not transfer scores or judgments without verification. Run the preflight and verify data isolation before any training or final evaluation.
+**Use only the frozen V3-R2 benchmark for new evaluation.** [Start here](docs/START_TRAVEL_V3_R2.md) and [current notebook](notebooks/train_qwen3_lora_colab.ipynb). [Active dataset](data/golden_v3_r2.jsonl), SHA-256 `415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76`, freeze commit `31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71`. Team approval and final leader authorization are recorded. Earlier datasets and results are historical; old benchmark files are removed from the current branch and retained in the [immutable historical snapshot](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/tree/bb4b3e358969bceae47fc6369d8a46c31115abaa). do not transfer scores or judgments without verification. Run the preflight and verify data isolation before any training or final evaluation.
 
 **KAUST Academy — NLP Applications (2026)**  
 **Project:** Saudi Dialect to Modern Standard Arabic Rewriting with a Fact-Preservation Check
@@ -27,7 +27,7 @@ A rule-based checker **cannot guarantee full semantic or factual preservation**.
 - Five approved refinements affect only `g072`, `g085`, `g086`, `g088`, and `g095`.
 - The annotated set originated from AI-assisted drafts and was reviewed by the team; it should not be misrepresented as 100 independently human-authored source messages.
 
-**Approved test:** [`data/golden_test.jsonl`](data/golden_test.jsonl).  
+**Historical V2.2 test (not for current work):** [frozen snapshot](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/blob/bb4b3e358969bceae47fc6369d8a46c31115abaa/data/golden_test.jsonl).  
 **Documented review:** [`review/review_evidence.csv`](review/review_evidence.csv) and [`review/approval_attestation.json`](review/approval_attestation.json).
 
 **Expected SHA-256 for the approved JSONL:** `4b9d8425d8c26d54507475bb55f594d4670a78e72e7ad4e7a96a1e78d3971f19`.

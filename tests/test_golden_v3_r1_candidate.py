@@ -7,7 +7,8 @@ from src.validate_golden import validate_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def test_v3_r1_exact_delta_and_integrity():
+def test_v3_r1_exact_delta_and_integrity(historical_snapshot):
+    ROOT = historical_snapshot
     old_path = ROOT / "data/golden_v3.jsonl"
     new_path = ROOT / "data/golden_v3_r1_candidate.jsonl"
     m = json.loads((ROOT / "review/v3_r1_revision_manifest.json").read_text(encoding="utf-8"))
