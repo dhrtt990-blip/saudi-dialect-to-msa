@@ -10,7 +10,7 @@ The project rewrites short Saudi-dialect messages into Modern Standard Arabic wh
 |---|---|---|---|
 | Khalid Almeman, multidialectal parallel Arabic corpus, [Zenodo 17776617](https://doi.org/10.5281/zenodo.17776617) | 50,010 short travel-related rows; use Saudi Dialect + Modern Standard Arabic columns | Candidate supervised training/validation | Source identified; final sampled subset and split counts must come from a real processing run |
 | `src/data_prep.py` synthetic templates | 31 templates filled with invented names, amounts, dates, times, numbers, identifiers | Candidate training/validation | Generator coded; actual build/report generated during preparation |
-| `data/golden_test.jsonl` | 100 reviewed messages across nine service/administrative topic groups | **Evaluation only** | Team approved per leader attestation; validator passed |
+| [Historical V2.2 test](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/blob/bb4b3e358969bceae47fc6369d8a46c31115abaa/data/golden_test.jsonl) | 100 reviewed messages across nine service/administrative topic groups | **Evaluation only** | Team approved per leader attestation; validator passed |
 
 **Corpus licence discrepancy:** The Zenodo licence metadata and corresponding paper report CC BY 4.0, while a README inside the distribution states non-commercial reuse (CC BY-NC) and warns about upstream API terms. The project takes a cautious, non-commercial course-use approach and does not redistribute the raw corpus, processed derived lines, or adapter until the terms are clarified. The upstream source is acknowledged; this dataset card does not claim legal clearance to distribute derived weights.
 
@@ -22,7 +22,7 @@ The project rewrites short Saudi-dialect messages into Modern Standard Arabic wh
 - Comparisons to the original draft: 0 source edits; 4 MSA reference refinements (`g072`, `g086`, `g088`, `g095`); one `must_keep` refinement (`g085`); 95 complete rows unchanged. Mohammed and Musaad rechecked these five entries in the leader’s presence; see `docs/FIVE_CHANGE_AUDIT.md`.
 - Strict structural and reference-fact check: **0 errors, 1 dialect-lexicon coverage warning** involving 37 sources.
 - Golden SHA-256: `4b9d8425d8c26d54507475bb55f594d4670a78e72e7ad4e7a96a1e78d3971f19`.
-- Additional evidence: `docs/GOLDEN_TEST_TEAM_APPROVAL.md` and `review/golden_review_approved.xlsx`.
+- Additional evidence: `docs/GOLDEN_TEST_TEAM_APPROVAL.md` and [historical workbook](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/blob/bb4b3e358969bceae47fc6369d8a46c31115abaa/review/golden_review_approved.xlsx).
 
 **Repository freeze:** A local release and SHA-256 are ready. Record the first GitHub commit SHA/date only after actual push, before training begins. A local file hash is not a Git commit or proof that the freeze already occurred.
 
@@ -40,10 +40,12 @@ Use synthetic names, dates, amounts and example-domain addresses only. No real p
 
 A separate, AI-assisted, team-reviewed travel benchmark contains 100 messages, 322 labelled fact entries and 40 messages with missing details. Review evidence is in [V3 team approval](GOLDEN_V3_TEAM_APPROVAL.md) and [manifest](../GOLDEN_V3_RELEASE_MANIFEST.json). V2.2 was frozen in commit eb809eef46f2c9849f305478d7cd7e1c0846e91c and remains unchanged. V3 must be isolated from training/validation and checked for leakage before new experiments. Historical V2.2 results do not establish performance on V3. On 25 November 2026, the team leader reported that the supervising instructor had reviewed the complete presented results and approved the project. This is a leader-reported approval, not a directly supplied instructor record. It does not establish approval of a specific V3 file hash or results of experiments not yet performed. Licensing remains unresolved.
 
-## V3-R1 active freeze — 25 November 2026
+## V3-R1 historical freeze — 25 November 2026
 
-The active evaluation-only release is [data/golden_v3_r1_candidate.jsonl](../data/golden_v3_r1_candidate.jsonl), 100 records, 335 fact-label entries, 40 missing-detail rows. Its filename is retained for reproducibility. Freeze commit `51127bdfb65a19adb763501d139515dd4479ff27`, SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Activated by PR #4 and final freeze authorized by the team leader. Actual processed split counts and overlap outcome are not yet established; require the V3-R1 prep report before training. See [start instructions](START_TRAVEL_V3_R1.md). Historical V2.2 and V3 remain unchanged. No new real-model results or licence clearance are claimed.
+The previous evaluation-only release is [V3-R1 historical snapshot](https://github.com/dhrtt990-blip/saudi-dialect-to-msa/blob/bb4b3e358969bceae47fc6369d8a46c31115abaa/data/golden_v3_r1_candidate.jsonl), 100 records, 335 fact-label entries, 40 missing-detail rows. Its filename is retained for reproducibility. Freeze commit `51127bdfb65a19adb763501d139515dd4479ff27`, SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`. Activated by PR #4 and final freeze authorized by the team leader. Actual processed split counts and overlap outcome are not yet established; require the V3-R1 prep report before training. See [start instructions](START_TRAVEL_V3_R1.md). Historical V2.2 and V3 remain unchanged. No new real-model results or licence clearance are claimed.
 
 ## V3-R2 active evaluation benchmark — 27 November 2026
 
 The active benchmark is `data/golden_v3_r2.jsonl` with SHA-256 `415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76` and freeze commit `31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71`. Team-approved contextual labels (335 total, 274 improved) preserve the 100 sources and references. Earlier versions are historical. See [current instructions](START_TRAVEL_V3_R2.md). Actual experiment lineage and human judgments must be verified separately.
+
+Historical benchmark files were removed from the current checkout without rewriting history; see [historical archive](HISTORICAL_BENCHMARKS.md).
