@@ -1,0 +1,13 @@
+{
+  "checked_on": "2026-11-25",
+  "zenodo_metadata_license": "cc-by-4.0",
+  "zenodo_readme_license": "CC BY-NC, version not specified",
+  "upstream_api_terms_identified": false,
+  "clearance_for_public_weights": false,
+  "metadata_sha256": "9f3f5d9e5c8ddb572a252a66c91051f7f8fcc1ebabc95b6a3a85c5a1d89624e0",
+  "readme_sha256": "78b50fbb7d5e3a1428bd79f67b7c2bb1c15efcf63abb15364e54f7d7c067f84e",
+  "metadata_url": "https://zenodo.org/api/records/17776617",
+  "readme_url": "https://zenodo.org/records/17776617/files/README.md",
+  "base_model_license": "apache-2.0",
+  "base_model_current_revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+}

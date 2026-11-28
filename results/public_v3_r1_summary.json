@@ -1,0 +1,209 @@
+{
+  "release": "Golden V3-R1",
+  "golden_sha256": "e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6",
+  "clients": {
+    "baseline": "ollama:travel-v3-r1-base+fewshot",
+    "tuned": "ollama:travel-v3-r1-lora",
+    "full": "ollama:travel-v3-r1-lora+pipeline"
+  },
+  "prediction_sha256": {
+    "baseline": "36d5092ba1fdf8ad6674d52873ac4093103d596914aaefc0e85ecb7dc668e20c",
+    "tuned": "91adf0eadc99035cdfc3375230609e2930d558ebbd126f226f7dac78df9ab752",
+    "full": "de1d4d533d8d2f1600b70bdb1eb100625f5881b564c0148ce156370dc14bc4fe"
+  },
+  "systems": {
+    "baseline": {
+      "n": 100,
+      "released": 100,
+      "withheld": 0,
+      "no_output": 0,
+      "repaired": 0,
+      "auto_pass": 82,
+      "correct": null,
+      "fully_judged": false,
+      "judged": 0,
+      "released_with_fact_error": 10,
+      "released_with_added_fact": 4,
+      "key_facts": {
+        "labelled": 335,
+        "judged": 0,
+        "lost": null,
+        "lost_checker_reads": null,
+        "lost_outside_checker": null,
+        "lost_although_found_automatically": null,
+        "disputed": null,
+        "not_found_automatically": 86
+      },
+      "error_counts": {
+        "no_output": 0,
+        "withheld": 0,
+        "dropped_fact": 6,
+        "changed_fact": 3,
+        "added_fact": 1,
+        "name_lost": 0,
+        "dialect_left": 7,
+        "copied_input": 2,
+        "meaning_changed": null,
+        "content_added": null,
+        "key_fact_lost": null,
+        "raters_disagree": null
+      },
+      "chrf_mean": 0.5807,
+      "human_judgment_status": "pending",
+      "repair_attempts": 0,
+      "withheld_after_repair": 0
+    },
+    "tuned": {
+      "n": 100,
+      "released": 100,
+      "withheld": 0,
+      "no_output": 0,
+      "repaired": 0,
+      "auto_pass": 88,
+      "correct": null,
+      "fully_judged": false,
+      "judged": 0,
+      "released_with_fact_error": 11,
+      "released_with_added_fact": 7,
+      "key_facts": {
+        "labelled": 335,
+        "judged": 0,
+        "lost": null,
+        "lost_checker_reads": null,
+        "lost_outside_checker": null,
+        "lost_although_found_automatically": null,
+        "disputed": null,
+        "not_found_automatically": 82
+      },
+      "error_counts": {
+        "no_output": 0,
+        "withheld": 0,
+        "dropped_fact": 4,
+        "changed_fact": 1,
+        "added_fact": 6,
+        "name_lost": 0,
+        "dialect_left": 1,
+        "copied_input": 0,
+        "meaning_changed": null,
+        "content_added": null,
+        "key_fact_lost": null,
+        "raters_disagree": null
+      },
+      "chrf_mean": 0.6596,
+      "human_judgment_status": "pending",
+      "repair_attempts": 0,
+      "withheld_after_repair": 0
+    },
+    "full": {
+      "n": 100,
+      "released": 90,
+      "withheld": 10,
+      "no_output": 0,
+      "repaired": 1,
+      "auto_pass": 89,
+      "correct": null,
+      "fully_judged": false,
+      "judged": 0,
+      "released_with_fact_error": 0,
+      "released_with_added_fact": 0,
+      "key_facts": {
+        "labelled": 300,
+        "judged": 0,
+        "lost": null,
+        "lost_checker_reads": null,
+        "lost_outside_checker": null,
+        "lost_although_found_automatically": null,
+        "disputed": null,
+        "not_found_automatically": 68
+      },
+      "error_counts": {
+        "no_output": 0,
+        "withheld": 10,
+        "dropped_fact": 0,
+        "changed_fact": 0,
+        "added_fact": 0,
+        "name_lost": 0,
+        "dialect_left": 1,
+        "copied_input": 0,
+        "meaning_changed": null,
+        "content_added": null,
+        "key_fact_lost": null,
+        "raters_disagree": null
+      },
+      "chrf_mean": 0.6678,
+      "human_judgment_status": "pending",
+      "repair_attempts": 11,
+      "withheld_after_repair": 10
+    }
+  },
+  "targets": {
+    "T1": {
+      "status": "pending_human_judgments"
+    },
+    "T2": {
+      "status": "pending_human_judgments"
+    },
+    "T3": {
+      "withheld": 10,
+      "denominator": 100,
+      "withholding_limit_met": true,
+      "status": "pending_human_judgments"
+    },
+    "T4": {
+      "exact_requests": 32,
+      "incomplete": 40,
+      "needless_requests": 1,
+      "complete": 60,
+      "status": "met"
+    }
+  },
+  "agreement": null,
+  "transitions": [
+    {
+      "before": "baseline",
+      "after": "tuned",
+      "key": "auto_pass",
+      "wrong_to_right": 11,
+      "right_to_wrong": 5,
+      "stayed_right": 77,
+      "stayed_wrong": 7
+    },
+    {
+      "before": "tuned",
+      "after": "full",
+      "key": "auto_pass",
+      "wrong_to_right": 1,
+      "right_to_wrong": 0,
+      "stayed_right": 88,
+      "stayed_wrong": 11
+    }
+  ],
+  "needs": {
+    "incomplete": 40,
+    "complete": 60,
+    "asked_on_incomplete": 33,
+    "asked_exactly": 32,
+    "needless_asks": 1,
+    "per_detail": {
+      "date": {
+        "labelled": 13,
+        "asked": 13,
+        "both": 13
+      },
+      "destination": {
+        "labelled": 9,
+        "asked": 11,
+        "both": 9
+      },
+      "booking_reference": {
+        "labelled": 22,
+        "asked": 15,
+        "both": 15
+      }
+    }
+  },
+  "interpretation": "Automatic passes do not establish semantic correctness. Unjudged human outcomes are null or pending, never zero.",
+  "evaluation_code_commit": "229141e9d4fd7bbcca9fdaa369adeea067535e45",
+  "evaluation_elapsed_seconds": 239.0830949160154,
+  "adapter_sha256": "2ace6f366dfc35192385ade92d2548e57250ae6c419d07d4039e5257e49d5aa8"
+}
