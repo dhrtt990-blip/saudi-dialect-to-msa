@@ -1,0 +1,23 @@
+{
+  "source_file_sha256": "3e1b47b8d7eae43f563ba9941e5806e595063bc3e81f44a3e23fe7de792fc127",
+  "recorded_utc": "2026-11-25T19:55:40.745652+00:00",
+  "T1": {
+    "net_improvement_min": 10,
+    "exact_two_sided_sign_test_p_max_exclusive": 0.05,
+    "requires": "human_correctness"
+  },
+  "T2": {
+    "full_released_human_errors_max": 3
+  },
+  "T3": {
+    "withheld_max": 15,
+    "incorrect_withholds_max": 5
+  },
+  "T4": {
+    "exact_missing_detail_recall_min": 0.8,
+    "needless_ask_rate_max": 0.1
+  },
+  "agreement_gate_min": 0.8,
+  "note": "Recovered historical targets unchanged. Active main omitted the table. T4 had already been scored when this recovery was made; this is not a new preregistration.",
+  "source": "Historical project package NLP_Project_2026-11-25.zip, docs/PLAN_REVIEW_PREP.md"
+}

@@ -1,0 +1,45 @@
+{
+  "code_commit": "66d26070ba6b98ca3356e39914282bfc72326c76",
+  "golden_sha256": "e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6",
+  "base_model_revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+  "seed": 13,
+  "python": "3.13.16",
+  "gpu": "Tesla T4",
+  "gpu_bytes": 15637086208,
+  "started_utc": "2026-11-25T19:58:42.893441+00:00",
+  "finished_utc": "2026-11-25T21:56:44.638425+00:00",
+  "elapsed_seconds": 7044.21353738,
+  "global_step": 1078,
+  "peak_gpu_bytes": 7816877568,
+  "loaded_module_versions": {
+    "torch": "2.14.1+cu130",
+    "transformers": "5.23.0",
+    "peft": "0.21.3",
+    "trl": "1.18.0",
+    "datasets": "5.2.0",
+    "pyarrow": "26.0.1",
+    "accelerate": "1.15.0"
+  },
+  "installed_module_versions_after_repair": {
+    "torch": "2.14.1+cu130",
+    "transformers": "5.23.0",
+    "peft": "0.21.3",
+    "trl": "1.18.0",
+    "datasets": "5.2.0",
+    "pyarrow": "23.0.1",
+    "accelerate": "1.15.0"
+  },
+  "actual_trainer_rows": {
+    "train": 8613,
+    "validation": 957
+  },
+  "training_cell_sha256": "127be1fcbdd6a0cc9ee3eb0b6984b3a6b094fd44c28f185277aa47f8c0a9e4ac",
+  "export_code_commit": "0614b77d183f59154852fbf128449c1b72cfe6cf",
+  "status": "training_saved",
+  "adapter_sha256": "2ace6f366dfc35192385ade92d2548e57250ae6c419d07d4039e5257e49d5aa8",
+  "train_runtime_seconds": 7042.7243,
+  "validation_loss_epoch_1": 0.09693749994039536,
+  "validation_loss_epoch_2": 0.08798450231552124,
+  "successful_adapter_reload": true,
+  "reload_validation_examples": 5
+}

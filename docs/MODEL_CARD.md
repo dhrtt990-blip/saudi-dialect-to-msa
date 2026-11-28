@@ -1,37 +1,51 @@
-# Model Card — Planned Qwen3-1.7B LoRA Saudi Dialect → MSA Rewriter
+# Model card — Travel desk V3-R1 Qwen3-1.7B LoRA
 
-## Model objective
+**Benchmark note (27 November 2026):** the active frozen benchmark is now **V3-R2** (`data/golden_v3_r2.jsonl`, SHA-256 `415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76`, 100 records, 335 labelled key facts). This card documents the historical V3-R1 adapter and its V3-R1-phase evaluation. The V3-R1 results below are historical; they are not V3-R2 results and must not be transferred without verification. Final evaluation of this adapter on V3-R2 is pending.
 
-Rewriting short Saudi-dialect messages into formal Modern Standard Arabic while retaining intent and facts (numbers, dates, times, Latin-script content and explicitly listed names).
+## Purpose and workflow
 
-- **Base model:** `Qwen/Qwen3-1.7B`, within the course's 4B parameter limit.
-- **Adaptation:** supervised LoRA; QLoRA fallback described in `notebooks/train_qwen3_lora_colab.ipynb`.
-- **Deployment plan:** local Ollama inference and right-to-left Streamlit interface.
-- **Pipeline:** rewrite → deterministic fact comparison → one repair attempt → release/withhold; semantic equivalence is not guaranteed by rules.
-- **Repository:** GitHub project prepared for publication under the proposed name `dhrtt990-blip/saudi-dialect-to-msa`; publication and commit must be verified before presenting a live URL as completed.
+Rewrite fictional Darb Aljawza Travel customer messages from Saudi dialect into formal Modern Standard Arabic while preserving intent and booking facts. The system presents missing-detail questions for staff, rewrites, checks supported facts, attempts one repair and withholds a rewrite when the difference persists. A rule pass does not establish semantic equivalence.
 
-## Training provenance
+## Model and training
 
-Training notebook, dependency files and data preparation code are present. At this release checkpoint **no real training log, LoRA adapter checkpoint, measured training duration or published adapter is provided**. Values are supplied from a reproducible run, not filled with estimates. Source corpus usage requires licence clarification as detailed in `docs/DATASET_CARD.md`.
+- Base: `Qwen/Qwen3-1.7B`, revision `70d244cc86ccca08cf5af4e1e306ecf908b1ad5e`, within the 4B course limit.
+- Actual training source: `66d26070ba6b98ca3356e39914282bfc72326c76`; exact executed cell SHA-256 `127be1fcbdd6a0cc9ee3eb0b6984b3a6b094fd44c28f185277aa47f8c0a9e4ac`.
+- Run: `travel-v3-r1-20261125T195842Z`, Tesla T4, float16 LoRA, seed 13, 2 epochs, 1,078 optimizer steps.
+- Rank 16, alpha 32, dropout 0.05, all linear layers; 17,432,576 trainable parameters of 1,738,007,552 total.
+- Assistant-only loss, maximum 768 tokens, batch 4 × accumulation 4, learning rate 0.0001, cosine schedule.
+- 8,613 training pairs and 957 validation pairs; the written files matched between Mac and Colab. Golden R1 remained evaluation-only and was used only to exclude overlap during preparation.
+- Trainer runtime: 7,042.7243 seconds. Runtime through final adapter saving: 7,044.2135 seconds. Epoch validation losses: 0.0969375 and 0.0879845. These are training-source losses, not Golden accuracy.
+- Saved adapter SHA-256: `2ace6f366dfc35192385ade92d2548e57250ae6c419d07d4039e5257e49d5aa8`. The adapter was reloaded from disk and generated nonempty rewrites for five validation examples.
 
-## Golden reference benchmark
+The public aggregate record is [review/v3_r1_training_summary.json](../review/v3_r1_training_summary.json). Detailed logs, checkpoints, source, package freeze and reload outputs are reported to be in the private team bundle; the archive has not been supplied for independent verification here. Loaded and installed modules are recorded separately: pyarrow 26.0.1 remained loaded after pip installed 23.0.1. This execution is not described as a clean restart with 23.0.1.
 
-The 100-example benchmark in `data/golden_test.jsonl` is approved according to the team leader's attestation, with 25 reciprocal peer reviews per team member. All four reciprocal pairings were confirmed directly by the leader, who witnessed the team review and approval; the register is `review/golden_review_approved.xlsx`. Strict validator output: 0 errors, 1 dialect lexicon coverage warning. Golden Test v2.2 has 100/100 owner approvals and peer reviews, with five refinements rechecked by Mohammed and Musaad in the team leader’s presence. Commit the benchmark **before** real training.
+## Historical V3-R1 evaluation
 
-## Evaluation design (future real measurements)
+The V3-R1-phase benchmark was `data/golden_v3_r1_candidate.jsonl`: 100 messages, 335 labelled key facts, 40 incomplete requests, SHA-256 `e1dbff1b7a8045dc061a622b1233d2ccee8ef4b5901202a2f6391e9c906ef8e6`, retained in the immutable historical snapshot. The active benchmark is now V3-R2 (see the note at the top).
 
-| System | Release rate | Meaning/quality judgements | Preserved factual spans | False releases / withheld |
-|---|---|---|---|---|
-| Untuned Qwen3-1.7B with full baseline prompt | Measure on real model | Two blinded human raters | Calculate using golden set | Report experimentally |
-| LoRA-tuned model alone | Measure on real model | Two blinded human raters | Calculate using golden set | Report experimentally |
-| Tuned model + verification pipeline | Measure on real model | Two blinded human raters | Calculate using golden set | Report experimentally |
+The V3-R1 phase compared a fixed prompted baseline, LoRA alone and the full pipeline on all 100 messages, with missing-detail checks disabled for that three-system comparison and scored separately. Historical V3-R1 automatic pass counts are 82/100 for the baseline, 88/100 for LoRA alone and 89/100 for the full pipeline. The full pipeline released 90/100 and withheld 10/100; it attempted 11 repairs, released one repaired output and withheld ten. Baseline-to-tuned automatic transitions were 11 failures to passes and 5 passes to failures, a net gain of 6. These are automatic outcomes, not semantic gains, and they are historical V3-R1 results. See [public R1 aggregates](../results/public_v3_r1_summary.json).
 
-Also report wrong→right versus right→wrong examples, error categories, ten adversarial inputs, and local inference timing if measured. Mock-only evaluations are diagnostics, not model accuracy results.
+Human review status for the 206 rated V3-R1 rewrites: the rewrites were rated in two label sets. Set A was assigned directly by team members; set B began from AI-suggested labels that team members reviewed and edited, so set B is not an independent human rater. Agreement between the two recorded label sets is 78.6% direct (162/206), Cohen's kappa 0.659, and 82.0% on identifying missing facts; 67 distinct cases disagree on the verdict, on missing-fact identification, or both (30 verdict-only, 23 missing-fact-only, 14 both). Adjudication and per-system human correctness (T1–T3) are pending; final evaluation on V3-R2 is pending. See [human evaluation](HUMAN_EVAL_V3_R1.md).
 
-## Limitations and responsible use
+The unchanged missing-detail rules asked on 33/40 incomplete messages, asked for exactly the labelled fields on 32/40, and asked needlessly on 1/60 complete messages in the V3-R1 phase. This met historical T4 at its lower exact-request threshold. Fixed T1–T4 are in [review/v3_r1_targets.json](../review/v3_r1_targets.json), with the timing of their historical recovery disclosed.
 
-- Pattern checks cannot fully understand meaning or preserve every implicit fact.
-- The candidate corpus is short, often machine-generated and travel-focused; generalization to other dialect regions and domains is uncertain.
-- Some synthetic training templates and golden examples share an AI drafting process, so data leakage and style shortcuts require careful checks.
-- Proper-name matching only covers names explicitly supplied as `must_keep`.
-- Final adapter sharing and licence will be chosen after confirming upstream rights.
+## Matched deployment artifacts
+
+Both HF exports were converted using llama.cpp `bb692efaa43809dd8584fefddda42a54a9a50846`, Q8_0, and the same saved tokenizer. Each GGUF is 1,834,426,208 bytes.
+
+| Artifact | SHA-256 |
+|---|---|
+| Untuned base Q8_0 | `3ac117c8d53c7ed174523db645fcaa76cae9cf6661438332f693c8c7f450a56e` |
+| Merged LoRA Q8_0 | `93118a663a1b600fa1373b0a13d0fd14dae936c4a2d29e8bfa63c2ebc27341a8` |
+
+The conversion runtime uses Transformers 5.23.0 to read its own saved tokenizer format. The attempted 4.57.6 conversion failed and contributes no model artifact. The preserved conversion manifest records all source-file digests. Both models passed the four-case exact prompt-template and repeat-penalty checks in Ollama 0.40.18 on an Apple M5 Mac. An actual Chrome/Streamlit demonstration released a complete booking request with its city, date and time, and asked for date and destination on an incomplete request. macOS 27.2.1 was tested; Windows was not.
+
+## Limits and licensing
+
+The checker reads bounded patterns, words and supplied names; it misses some semantic changes, number words and relationships between preserved facts. The corpus is short and AI-generated; the small benchmark originated from AI-assisted drafts and team review. Neither establishes generalization to real customers or other domains. No AI-suggested label is counted as an independent human judgment; see the human review status above.
+
+Base model licence: Apache 2.0. Corpus licence statements conflict between Zenodo metadata and its attached README, with upstream terms unresolved; see [dataset card](DATASET_CARD.md) and [licence audit](../review/v3_r1_licence_check.json). New weights and detailed derived texts remain private. Historical V2.2 weights and evidence are preserved.
+
+## Safety status
+
+All 12 travel safety cases ran in the V3-R1 phase: 10 RELEASED_CHECKED, one ASKED and one BLOCKED. RELEASED_CHECKED is not semantic safety; actual released outputs include changes to a complaint and to a question. The 12 fixture definitions are documented; actual per-case outputs, semantic review and any V3-R2 confirmation run remain pending. See [safety cases](SECURITY_CASES.md).

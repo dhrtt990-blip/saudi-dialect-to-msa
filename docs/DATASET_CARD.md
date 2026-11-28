@@ -49,3 +49,7 @@ The previous evaluation-only release is [V3-R1 historical snapshot](https://gith
 The active benchmark is `data/golden_v3_r2.jsonl` with SHA-256 `415f40b7e754b006709d13c92a7f1b2eabbacdb03f7cf3e1dec3f40d12f26e76` and freeze commit `31b8de5d38e5c44bc7eb7fcc92ea0b59d06cae71`. Team-approved contextual labels (335 total, 274 improved) preserve the 100 sources and references. Earlier versions are historical. See [current instructions](START_TRAVEL_V3_R2.md). Actual experiment lineage and human judgments must be verified separately.
 
 Historical benchmark files were removed from the current checkout without rewriting history; see [historical archive](HISTORICAL_BENCHMARKS.md).
+
+## Publication hold — 28 November 2026
+
+The historical [licence record](../review/v3_r1_licence_check.json) reports conflicting corpus licence statements and unresolved upstream terms. The dataset record remains available at https://doi.org/10.5281/zenodo.17776617. No affirmative clearance has been established. Keep new adapter weights and detailed derived texts private; verify applicable terms with the rights holder and course staff before any redistribution. This is a conservative publication decision, not a legal determination of permission for all private uses.
